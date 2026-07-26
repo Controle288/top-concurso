@@ -8,7 +8,7 @@ import EmptyState from '../shared/EmptyState';
 import SearchBar from '../shared/SearchBar';
 
 function getEmbedUrl(youtubeId: string) {
-  return `https://pipedapi.kavin.rocks/embed/${youtubeId}`;
+  return `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1`;
 }
 
 export default function VideoLibrary() {
@@ -210,7 +210,7 @@ export default function VideoLibrary() {
 
           <div className="bg-black shrink-0" style={{ height: '35vh' }}>
             <iframe
-              src={getEmbedUrl(extractYoutubeId(selectedAula.youtube_url) || selectedAula.youtube_url)}
+              src={getEmbedUrl(selectedAula.youtube_id || extractYoutubeId(selectedAula.youtube_url) || selectedAula.youtube_url)}
               className="w-full h-full"
               allowFullScreen
               allow="autoplay; encrypted-media"
