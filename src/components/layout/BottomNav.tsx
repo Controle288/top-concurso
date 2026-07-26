@@ -4,7 +4,7 @@ import {
   MessageSquare, Brain, ChevronLeft, ChevronRight, Sparkles, LogOut, User, Crown
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { Profile } from '@/types';
+import { useAuth } from '@/lib/AuthContext';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Início' },
@@ -16,7 +16,8 @@ const navItems = [
   { to: '/forum', icon: MessageSquare, label: 'Fórum' },
 ];
 
-export default function BottomNav({ sidebarOpen, setSidebarOpen, profile }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void; profile?: Profile | null }) {
+export default function BottomNav({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void }) {
+  const { profile } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {

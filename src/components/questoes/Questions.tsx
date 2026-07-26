@@ -1,181 +1,268 @@
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useNavigate } from 'react-router-dom';
-import type { Questao } from '@/types';
-import { Check, X, ChevronRight, Award, RotateCcw, AlertCircle, Sparkles, Trophy, Timer, Play, Crown } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useNavigate } from 'react-router-dom'
+import type { Questao } from '@/types'
+import { Check, X, ChevronRight, Award, RotateCcw, AlertCircle, Sparkles, Trophy, Timer, Play, Crown } from 'lucide-react'
+import { useAuth } from '@/lib/AuthContext'
+import QuestionComments from '@/components/shared/QuestionComments'
 
 function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+interface AlternativaProps {
+  altKey: string
+  text: string
+  isSelected: boolean
+  isAnswered: boolean
+  correta: string
+  onSelect: (key: string) => void
+}
+
+const Alternativa = memo(function Alternativa({ altKey, text, isSelected, isAnswered, correta, onSelect }: AlternativaProps) {
+  const showAsCorrect = isAnswered && altKey === correta
+  const showAsWrong = isAnswered && isSelected && altKey !== correta
+
+  let buttonStyle = 'bg-zinc-900/70 border-zinc-800/80 text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900'
+  let indicatorStyle = 'bg-zinc-950 border-zinc-700 text-zinc-400'
+
+  if (isSelected && !isAnswered) {
+    buttonStyle = 'bg-orange-500/10 border-orange-500 text-orange-200'
+    indicatorStyle = 'bg-orange-500 border-orange-500 text-black font-bold'
+  } else if (showAsCorrect) {
+    buttonStyle = 'bg-emerald-500/10 border-emerald-500 text-emerald-200'
+    indicatorStyle = 'bg-emerald-500 border-emerald-500 text-black'
+  } else if (showAsWrong) {
+    buttonStyle = 'bg-red-500/10 border-red-500 text-red-200'
+    indicatorStyle = 'bg-red-500 border-red-500 text-black'
+  } else if (isAnswered) {
+    buttonStyle = 'bg-zinc-900/20 border-zinc-900/50 text-zinc-600 opacity-60'
+    indicatorStyle = 'bg-zinc-950 border-zinc-800 text-zinc-700'
+  }
+
+  return (
+    <button onClick={() => onSelect(altKey)} disabled={isAnswered}
+      className={`w-full text-left p-3.5 rounded-xl border flex items-start gap-3.5 transition-all duration-200 cursor-pointer ${buttonStyle}`}>
+      <div className={`w-6 h-6 shrink-0 rounded-lg flex items-center justify-center text-xs font-semibold border transition-all ${indicatorStyle}`}>
+        {showAsCorrect ? <Check className="w-3.5 h-3.5 stroke-[3px]" /> : showAsWrong ? <X className="w-3.5 h-3.5 stroke-[3px]" /> : altKey}
+      </div>
+      <span className="text-sm font-medium leading-relaxed">{text}</span>
+    </button>
+  )
+})
+
 export default function Questions() {
-  const [questions, setQuestions] = useState<Questao[]>([]);
-  const [filteredQuestions, setFilteredQuestions] = useState<Questao[]>([]);
-  const [bancas, setBancas] = useState<{ id: string; nome: string }[]>([]);
-  const [disciplinas, setDisciplinas] = useState<{ id: string; nome: string }[]>([]);
-  const [concursos, setConcursos] = useState<{ id: string; titulo: string }[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [scoreHistory, setScoreHistory] = useState<{ id: string; correct: boolean }[]>([]);
-  const [questionsSolved, setQuestionsSolved] = useState(0);
-  const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [filterBanca, setFilterBanca] = useState('');
-  const [filterAno, setFilterAno] = useState('');
-  const [filterDisciplina, setFilterDisciplina] = useState('');
-  const [filterConcurso, setFilterConcurso] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [modoProva, setModoProva] = useState(false);
-  const [tempoRestante, setTempoRestante] = useState(0);
-  const [tempoTotal, setTempoTotal] = useState(0);
-  const [provaAtiva, setProvaAtiva] = useState(false);
-  const [showPremiumGate, setShowPremiumGate] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const navigate = useNavigate()
+  const { profile } = useAuth()
+  const [questions, setQuestions] = useState<Questao[]>([])
+  const [bancas, setBancas] = useState<{ id: string; nome: string }[]>([])
+  const [disciplinas, setDisciplinas] = useState<{ id: string; nome: string }[]>([])
+  const [concursos, setConcursos] = useState<{ id: string; titulo: string }[]>([])
+  const [anos, setAnos] = useState<number[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [isAnswered, setIsAnswered] = useState(false)
+  const [scoreHistory, setScoreHistory] = useState<{ id: string; correct: boolean }[]>([])
+  const [questionsSolved, setQuestionsSolved] = useState(0)
+  const [correctAnswers, setCorrectAnswers] = useState(0)
+  const [filterBanca, setFilterBanca] = useState('')
+  const [filterAno, setFilterAno] = useState('')
+  const [filterDisciplina, setFilterDisciplina] = useState('')
+  const [filterConcurso, setFilterConcurso] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [modoProva, setModoProva] = useState(false)
+  const [tempoRestante, setTempoRestante] = useState(0)
+  const [tempoTotal, setTempoTotal] = useState(0)
+  const [provaAtiva, setProvaAtiva] = useState(false)
+  const [showPremiumGate, setShowPremiumGate] = useState(false)
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
-  const navigate = useNavigate();
-
-  const TEMPO_POR_QUESTAO = 90;
+  const PAGE_SIZE = 20
+  const TEMPO_POR_QUESTAO = 90
 
   useEffect(() => {
     Promise.all([
       supabase.from('bancas').select('id, nome'),
       supabase.from('disciplinas').select('id, nome'),
       supabase.from('concursos').select('id, titulo'),
-      supabase.from('questoes').select('*, bancas(nome), disciplinas(nome), concursos(titulo)').order('created_at', { ascending: false }),
-    ]).then(([bancasRes, disciplinasRes, concursosRes, questoesRes]) => {
-      if (bancasRes.data) setBancas(bancasRes.data);
-      if (disciplinasRes.data) setDisciplinas(disciplinasRes.data);
-      if (concursosRes.data) setConcursos(concursosRes.data);
-      if (questoesRes.data) {
-        setQuestions(questoesRes.data);
-        setFilteredQuestions(questoesRes.data);
+      supabase.from('questoes').select('ano').not('ano', 'is', null).order('ano', { ascending: false }),
+    ]).then(([bancasRes, disciplinasRes, concursosRes, anosRes]) => {
+      if (bancasRes.data) setBancas(bancasRes.data)
+      if (disciplinasRes.data) setDisciplinas(disciplinasRes.data)
+      if (concursosRes.data) setConcursos(concursosRes.data)
+      if (anosRes.data) {
+        const uniqueAnos = [...new Set(anosRes.data.map(a => a.ano))].filter(Boolean) as number[]
+        setAnos(uniqueAnos)
       }
-      setLoading(false);
-    });
-  }, []);
+    })
+  }, [])
 
   useEffect(() => {
-    let result = questions;
-    if (filterBanca) result = result.filter(q => q.banca_id === filterBanca);
-    if (filterAno) result = result.filter(q => q.ano === parseInt(filterAno));
-    if (filterDisciplina) result = result.filter(q => q.disciplina_id === filterDisciplina);
-    if (filterConcurso) result = result.filter(q => q.concurso_id === filterConcurso);
-    setFilteredQuestions(result);
-    setCurrentIndex(0);
-    setSelectedKey(null);
-    setIsAnswered(false);
-    setScoreHistory([]);
-    setQuestionsSolved(0);
-    setCorrectAnswers(0);
-    if (timerRef.current) clearInterval(timerRef.current);
-    setProvaAtiva(false);
-    setTempoRestante(0);
-  }, [filterBanca, filterAno, filterDisciplina, filterConcurso, questions]);
+    setPage(0)
+    setQuestions([])
+    setHasMore(true)
+    setCurrentIndex(0)
+    setSelectedKey(null)
+    setIsAnswered(false)
+    setScoreHistory([])
+    setQuestionsSolved(0)
+    setCorrectAnswers(0)
+    if (timerRef.current) clearInterval(timerRef.current)
+    setProvaAtiva(false)
+    setTempoRestante(0)
+    loadQuestions(0, true)
+  }, [filterBanca, filterAno, filterDisciplina, filterConcurso])
 
   useEffect(() => {
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+    if (!hasMore || loadingMore || page === 0) return
+    loadQuestions(page)
+  }, [page])
 
-  const iniciarProva = async () => {
-    const total = filteredQuestions.length;
-    if (total === 0) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase.from('profiles').select('assinatura_ativa, role').eq('id', user.id).single();
-      if (!profile?.assinatura_ativa && profile?.role !== 'admin') {
-        setShowPremiumGate(true);
-        return;
-      }
-    }
-    const segundos = total * TEMPO_POR_QUESTAO;
-    setTempoTotal(segundos);
-    setTempoRestante(segundos);
-    setProvaAtiva(true);
-    setCurrentIndex(0);
-    setSelectedKey(null);
-    setIsAnswered(false);
-    setScoreHistory([]);
-    setQuestionsSolved(0);
-    setCorrectAnswers(0);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setTempoRestante(prev => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          return 0;
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect()
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage(prev => prev + 1)
         }
-        return prev - 1;
-      });
-    }, 1000);
-  };
+      },
+      { threshold: 0.1 }
+    )
+    if (loadMoreRef.current) observerRef.current.observe(loadMoreRef.current)
+    return () => observerRef.current?.disconnect()
+  }, [hasMore, loadingMore, loading])
 
   useEffect(() => {
-    if (provaAtiva && tempoRestante <= 0 && currentIndex < filteredQuestions.length) {
-      handleNext();
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [])
+
+  const loadQuestions = async (pageNum: number, replace = false) => {
+    setLoadingMore(true)
+    let query = supabase
+      .from('questoes')
+      .select('*, bancas(nome), disciplinas(nome), concursos(titulo)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1)
+
+    if (filterBanca) query = query.eq('banca_id', filterBanca)
+    if (filterAno) query = query.eq('ano', parseInt(filterAno))
+    if (filterDisciplina) query = query.eq('disciplina_id', filterDisciplina)
+    if (filterConcurso) query = query.eq('concurso_id', filterConcurso)
+
+    const { data, count } = await query
+
+    if (data) {
+      setQuestions(prev => replace ? data : [...prev, ...data])
+      setTotalCount(count || 0)
+      if (data.length < PAGE_SIZE) setHasMore(false)
     }
-  }, [tempoRestante]);
+    setLoading(false)
+    setLoadingMore(false)
+  }
 
-  const currentQuestion = currentIndex < filteredQuestions.length ? filteredQuestions[currentIndex] : null;
-  const isFinished = !provaAtiva && currentIndex >= filteredQuestions.length;
+  useEffect(() => {
+    if (provaAtiva && tempoRestante <= 0 && currentIndex < questions.length) {
+      handleNext()
+    }
+  }, [tempoRestante])
 
-  const handleSelect = (key: string) => {
-    if (isAnswered) return;
-    setSelectedKey(key);
-  };
+  const currentQuestion = currentIndex < questions.length ? questions[currentIndex] : null
+  const isFinished = !provaAtiva && currentIndex >= questions.length
+
+  const handleSelect = useCallback((key: string) => {
+    if (isAnswered) return
+    setSelectedKey(key)
+  }, [isAnswered])
 
   const handleAnswer = () => {
-    if (!selectedKey || !currentQuestion || isAnswered) return;
-    const isCorrect = selectedKey === currentQuestion.correta;
-    setIsAnswered(true);
-    setQuestionsSolved(prev => prev + 1);
-    if (isCorrect) setCorrectAnswers(prev => prev + 1);
-    setScoreHistory(prev => [...prev, { id: currentQuestion.id, correct: isCorrect }]);
-    const saved = localStorage.getItem('topconcurso_questoes');
-    const history = saved ? JSON.parse(saved) : [];
-    history.push({ id: currentQuestion.id, correct: isCorrect, date: new Date().toISOString() });
-    localStorage.setItem('topconcurso_questoes', JSON.stringify(history));
-  };
+    if (!selectedKey || !currentQuestion || isAnswered) return
+    const isCorrect = selectedKey === currentQuestion.correta
+    setIsAnswered(true)
+    setQuestionsSolved(prev => prev + 1)
+    if (isCorrect) setCorrectAnswers(prev => prev + 1)
+    const entry = { id: currentQuestion.id, correct: isCorrect }
+    setScoreHistory(prev => [...prev, entry])
+    const saved = localStorage.getItem('topconcurso_questoes')
+    const history = saved ? JSON.parse(saved) : []
+    history.push({ id: currentQuestion.id, correct: isCorrect, date: new Date().toISOString() })
+    localStorage.setItem('topconcurso_questoes', JSON.stringify(history))
+  }
 
   const handleNext = () => {
     if (provaAtiva && tempoRestante > 0) {
-      if (!isAnswered && selectedKey) handleAnswer();
+      if (!isAnswered && selectedKey) handleAnswer()
       else if (!isAnswered) {
-        setScoreHistory(prev => [...prev, { id: currentQuestion?.id || '', correct: false }]);
+        setScoreHistory(prev => [...prev, { id: currentQuestion?.id || '', correct: false }])
       }
     }
-    const next = currentIndex + 1;
-    if (next >= filteredQuestions.length) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      setProvaAtiva(false);
+    const next = currentIndex + 1
+    if (next >= questions.length) {
+      if (timerRef.current) clearInterval(timerRef.current)
+      setProvaAtiva(false)
     }
-    setSelectedKey(null);
-    setIsAnswered(false);
-    setCurrentIndex(next);
-  };
+    setSelectedKey(null)
+    setIsAnswered(false)
+    setCurrentIndex(next)
+  }
+
+  const iniciarProva = async () => {
+    const total = questions.length
+    if (total === 0) return
+    if (!profile?.assinatura_ativa && profile?.role !== 'admin') {
+      setShowPremiumGate(true)
+      return
+    }
+    const segundos = total * TEMPO_POR_QUESTAO
+    setTempoTotal(segundos)
+    setTempoRestante(segundos)
+    setProvaAtiva(true)
+    setCurrentIndex(0)
+    setSelectedKey(null)
+    setIsAnswered(false)
+    setScoreHistory([])
+    setQuestionsSolved(0)
+    setCorrectAnswers(0)
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setTempoRestante(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
 
   const handleRestart = () => {
-    setCurrentIndex(0);
-    setSelectedKey(null);
-    setIsAnswered(false);
-    setScoreHistory([]);
-    setQuestionsSolved(0);
-    setCorrectAnswers(0);
-    if (timerRef.current) clearInterval(timerRef.current);
-    setProvaAtiva(false);
-  };
+    setCurrentIndex(0)
+    setSelectedKey(null)
+    setIsAnswered(false)
+    setScoreHistory([])
+    setQuestionsSolved(0)
+    setCorrectAnswers(0)
+    if (timerRef.current) clearInterval(timerRef.current)
+    setProvaAtiva(false)
+  }
 
-  if (isFinished && currentIndex >= filteredQuestions.length && filteredQuestions.length > 0) {
-    const total = filteredQuestions.length;
-    const correctCount = scoreHistory.filter(h => h.correct).length;
-    const rate = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+  if (isFinished && questions.length > 0) {
+    const total = scoreHistory.length
+    const correctCount = scoreHistory.filter(h => h.correct).length
+    const rate = total > 0 ? Math.round((correctCount / total) * 100) : 0
 
     return (
       <div className="flex flex-col gap-6 py-4 text-center select-none">
         <div className="py-8 flex flex-col items-center justify-center gap-3">
           <div className="relative">
-            <div className="absolute inset-0 bg-orange-500 rounded-full blur-xl opacity-30 animate-pulse"></div>
+            <div className="absolute inset-0 bg-orange-500 rounded-full blur-xl opacity-30 animate-pulse" />
             <div className="relative w-20 h-20 bg-zinc-900 border-2 border-orange-500 rounded-full flex items-center justify-center shadow-2xl">
               <Trophy className="w-10 h-10 text-orange-500" />
             </div>
@@ -215,7 +302,7 @@ export default function Questions() {
           <RotateCcw className="w-5 h-5" /> Refazer Simulado
         </button>
       </div>
-    );
+    )
   }
 
   return (
@@ -247,17 +334,17 @@ export default function Questions() {
         <select value={filterAno} onChange={(e) => setFilterAno(e.target.value)}
           className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap">
           <option value="">Todos Anos</option>
-          {[2024, 2023, 2022, 2021, 2020].map(a => <option key={a} value={a}>{a}</option>)}
+          {anos.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
 
-      {!provaAtiva && filteredQuestions.length > 0 && (
+      {!provaAtiva && questions.length > 0 && (
         <div className="bg-zinc-900/60 rounded-2xl p-4 border border-zinc-800/80">
           <div className="flex items-center gap-3 mb-3">
             <Timer className="w-5 h-5 text-orange-500" />
             <div>
               <p className="text-sm font-bold text-white">Modo Prova</p>
-              <p className="text-[10px] text-zinc-400">{filteredQuestions.length} questões • {filteredQuestions.length * TEMPO_POR_QUESTAO / 60} min</p>
+              <p className="text-[10px] text-zinc-400">{questions.length} questões • {questions.length * TEMPO_POR_QUESTAO / 60} min</p>
             </div>
           </div>
           <button onClick={() => iniciarProva()}
@@ -290,8 +377,12 @@ export default function Questions() {
       )}
 
       {loading ? (
-        <p className="text-center text-zinc-500 py-8">Carregando questões...</p>
-      ) : filteredQuestions.length === 0 ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="skeleton h-32 w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : questions.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-zinc-500 text-sm font-semibold">Nenhuma questão encontrada com esses filtros.</p>
         </div>
@@ -299,7 +390,7 @@ export default function Questions() {
         <>
           <div className="flex justify-between items-center select-none bg-zinc-900/40 px-3.5 py-2.5 rounded-xl border border-zinc-800/50">
             <span className="text-zinc-400 text-xs font-bold font-mono uppercase tracking-wider">
-              {provaAtiva ? 'PROVA' : 'QUESTÃO'} {currentIndex + 1} DE {filteredQuestions.length}
+              {provaAtiva ? 'PROVA' : 'QUESTÃO'} {currentIndex + 1} DE {questions.length}
             </span>
             <div className="flex items-center gap-3">
               {provaAtiva && tempoRestante > 0 && (
@@ -330,7 +421,7 @@ export default function Questions() {
                   )}
                 </div>
                 <h2 className="text-md font-bold text-zinc-400 flex items-center gap-1.5">
-                  <span className="w-1.5 h-3.5 bg-orange-500 rounded-full"></span>
+                  <span className="w-1.5 h-3.5 bg-orange-500 rounded-full" />
                   {(currentQuestion as any).disciplinas?.nome || 'Disciplina'}
                 </h2>
               </div>
@@ -340,38 +431,17 @@ export default function Questions() {
               </div>
 
               <div className="space-y-2.5">
-                {currentQuestion.alternativas.map((alt: { key: string; text: string }) => {
-                  const isSelected = selectedKey === alt.key;
-                  const showAsCorrect = isAnswered && alt.key === currentQuestion.correta;
-                  const showAsWrong = isAnswered && isSelected && selectedKey !== currentQuestion.correta;
-
-                  let buttonStyle = 'bg-zinc-900/70 border-zinc-800/80 text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900';
-                  let indicatorStyle = 'bg-zinc-950 border-zinc-700 text-zinc-400';
-
-                  if (isSelected && !isAnswered) {
-                    buttonStyle = 'bg-orange-500/10 border-orange-500 text-orange-200';
-                    indicatorStyle = 'bg-orange-500 border-orange-500 text-black font-bold';
-                  } else if (showAsCorrect) {
-                    buttonStyle = 'bg-emerald-500/10 border-emerald-500 text-emerald-200';
-                    indicatorStyle = 'bg-emerald-500 border-emerald-500 text-black';
-                  } else if (showAsWrong) {
-                    buttonStyle = 'bg-red-500/10 border-red-500 text-red-200';
-                    indicatorStyle = 'bg-red-500 border-red-500 text-black';
-                  } else if (isAnswered) {
-                    buttonStyle = 'bg-zinc-900/20 border-zinc-900/50 text-zinc-600 opacity-60';
-                    indicatorStyle = 'bg-zinc-950 border-zinc-800 text-zinc-700';
-                  }
-
-                  return (
-                    <button key={alt.key} onClick={() => handleSelect(alt.key)} disabled={isAnswered}
-                      className={`w-full text-left p-3.5 rounded-xl border flex items-start gap-3.5 transition-all duration-200 cursor-pointer ${buttonStyle}`}>
-                      <div className={`w-6 h-6 shrink-0 rounded-lg flex items-center justify-center text-xs font-semibold border transition-all ${indicatorStyle}`}>
-                        {showAsCorrect ? <Check className="w-3.5 h-3.5 stroke-[3px]" /> : showAsWrong ? <X className="w-3.5 h-3.5 stroke-[3px]" /> : alt.key}
-                      </div>
-                      <span className="text-sm font-medium leading-relaxed">{alt.text}</span>
-                    </button>
-                  );
-                })}
+                {currentQuestion.alternativas.map((alt) => (
+                  <Alternativa
+                    key={alt.key}
+                    altKey={alt.key}
+                    text={alt.text}
+                    isSelected={selectedKey === alt.key}
+                    isAnswered={isAnswered}
+                    correta={currentQuestion.correta}
+                    onSelect={handleSelect}
+                  />
+                ))}
               </div>
 
               {isAnswered && currentQuestion.explicacao && (
@@ -384,11 +454,15 @@ export default function Questions() {
                 </div>
               )}
 
+              {isAnswered && (
+                <QuestionComments questaoId={currentQuestion.id} />
+              )}
+
               <div className="pt-2">
                 {provaAtiva && tempoRestante > 0 ? (
                   <button onClick={handleNext}
                     className="w-full bg-orange-500 hover:bg-orange-600 text-black font-extrabold py-4 rounded-xl flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer">
-                    {currentIndex === filteredQuestions.length - 1 ? 'Ver Resultado Final' : 'Próxima Questão'}
+                    {currentIndex === questions.length - 1 ? 'Ver Resultado Final' : 'Próxima Questão'}
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 ) : (
@@ -402,17 +476,27 @@ export default function Questions() {
                       </button>
                     ) : (
                       <button onClick={handleNext} className="w-full bg-orange-500 hover:bg-orange-600 text-black font-extrabold py-4 rounded-xl flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(249,115,22,0.35)] active:scale-95 transition-all cursor-pointer">
-                        {currentIndex === filteredQuestions.length - 1 ? 'Ver Resultado Final' : 'Próxima Questão'}
+                        {currentIndex === questions.length - 1 ? 'Ver Resultado Final' : 'Próxima Questão'}
                         <ChevronRight className="w-5 h-5" />
                       </button>
                     )}
                   </>
                 )}
               </div>
+
+              {!provaAtiva && loadingMore && (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {hasMore && !provaAtiva && (
+                <div ref={loadMoreRef} className="h-4" />
+              )}
             </>
           )}
         </>
       )}
     </div>
-  );
+  )
 }

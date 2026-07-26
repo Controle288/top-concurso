@@ -186,6 +186,24 @@ export interface AulaConcluida {
   created_at: string;
 }
 
+export interface Flashcard {
+  id: string;
+  user_id: string;
+  front: string;
+  back: string;
+  box: number;
+  next_review: string;
+  created_at: string;
+}
+
+export interface StudySession {
+  id: string;
+  user_id: string;
+  data: string;
+  minutos: number;
+  created_at: string;
+}
+
 export interface Assinatura {
   id: string;
   user_id: string;

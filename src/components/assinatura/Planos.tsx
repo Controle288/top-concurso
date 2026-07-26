@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { redirectToCheckout, createPortalSession } from '@/lib/stripe';
-import { Sparkles, Check, Crown, Zap, ArrowLeft } from 'lucide-react';
-import type { Profile } from '@/types';
+import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/AuthContext'
+import { redirectToCheckout, createPortalSession } from '@/lib/stripe'
+import { Sparkles, Check, Crown, Zap, Gift } from 'lucide-react'
 
 const PLANS = [
   {
@@ -16,6 +16,7 @@ const PLANS = [
       'Questões para praticar',
       'Fórum de discussão',
       'Resumos pessoais',
+      'Flashcards (até 20 cards)',
     ],
     highlighted: false,
   },
@@ -27,13 +28,16 @@ const PLANS = [
     description: 'O máximo da preparação',
     features: [
       'Tudo do Gratuito',
+      'Flashcards ilimitados',
       'Simulado com timer (modo prova)',
       'Cronograma automático de estudos',
-      'Flashcards com revisão espaçada',
+      'Revisão espaçada completa',
+      'Exportar flashcards (CSV/Anki)',
       'Prioridade no suporte',
     ],
     highlighted: true,
     priceId: 'price_premium_monthly',
+    trialDays: 7,
   },
   {
     id: 'premium_yearly',
@@ -46,39 +50,48 @@ const PLANS = [
       '2 meses grátis',
       'Acesso prioritário a novos recursos',
       'Badge de assinante VIP',
+      'Suporte prioritário 24h',
     ],
     highlighted: false,
     priceId: 'price_premium_yearly',
     popular: true,
+    trialDays: 7,
   },
-];
+]
 
 export default function Planos() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
-          if (data) setProfile(data);
-        });
-      }
-    });
-  }, []);
+  const { profile, refreshProfile } = useAuth()
+  const [loading, setLoading] = useState<string | null>(null)
 
   const handleAssinar = async (plan: typeof PLANS[0]) => {
-    if (!plan.priceId) return;
-    setLoading(plan.id);
-    await redirectToCheckout(plan.priceId);
-    setLoading(null);
-  };
+    if (!plan.priceId) return
+    setLoading(plan.id)
+    await redirectToCheckout(plan.priceId)
+    setLoading(null)
+  }
+
+  const handleTrial = async (plan: typeof PLANS[0]) => {
+    if (!plan.priceId) return
+    setLoading(`trial_${plan.id}`)
+    await redirectToCheckout(plan.priceId, { trial_days: plan.trialDays })
+    setLoading(null)
+  }
 
   const handleGerenciar = async () => {
-    setLoading('manage');
-    await createPortalSession();
-    setLoading(null);
-  };
+    setLoading('manage')
+    await createPortalSession()
+    await refreshProfile()
+    setLoading(null)
+  }
+
+  const handleActivateTrial = async () => {
+    setLoading('trial')
+    const { error } = await supabase.rpc('activate_trial')
+    if (!error) {
+      await refreshProfile()
+    }
+    setLoading(null)
+  }
 
   return (
     <div className="flex flex-col gap-6 py-4">
@@ -108,6 +121,20 @@ export default function Planos() {
         </div>
       )}
 
+      {!profile?.assinatura_ativa && !profile?.role && (
+        <div className="card-glass p-4 flex items-center gap-3 bg-gradient-to-r from-orange-500/5 to-transparent border-orange-500/10">
+          <Gift className="w-5 h-5 text-orange-500 shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs font-bold text-orange-300">Teste grátis por 7 dias</p>
+            <p className="text-[10px] text-zinc-500">Experimente o Premium sem compromisso. Cancele quando quiser.</p>
+          </div>
+          <button onClick={handleActivateTrial} disabled={loading === 'trial'}
+            className="bg-orange-500 text-black text-xs font-extrabold px-4 py-2 rounded-xl hover:bg-orange-600 transition-all disabled:opacity-50">
+            {loading === 'trial' ? 'Ativando...' : 'Ativar Trial'}
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {PLANS.map((plan) => (
           <div key={plan.id} className={`relative card-glass p-6 flex flex-col ${
@@ -127,6 +154,9 @@ export default function Planos() {
             <div className="mb-5">
               <span className="text-3xl font-black text-white">{plan.price}</span>
               {plan.period && <span className="text-zinc-500 text-sm font-medium ml-1">{plan.period}</span>}
+              {plan.trialDays && !profile?.assinatura_ativa && (
+                <p className="text-[10px] text-orange-400 font-bold mt-1">7 dias grátis</p>
+              )}
             </div>
 
             <ul className="space-y-3 mb-6 flex-1">
@@ -145,18 +175,26 @@ export default function Planos() {
                   Gerenciar Assinatura
                 </button>
               ) : (
-                <button onClick={() => handleAssinar(plan)} disabled={loading === plan.id}
-                  className={`w-full font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50 ${
-                    plan.highlighted
-                      ? 'bg-orange-500 text-black hover:bg-orange-600 shadow-[0_4px_20px_rgba(249,115,22,0.3)]'
-                      : 'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800'
-                  }`}>
-                  {loading === plan.id ? (
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <><Zap className="w-4 h-4" /> Assinar Agora</>
+                <div className="space-y-2">
+                  <button onClick={() => handleAssinar(plan)} disabled={loading === plan.id}
+                    className={`w-full font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50 ${
+                      plan.highlighted
+                        ? 'bg-orange-500 text-black hover:bg-orange-600 shadow-[0_4px_20px_rgba(249,115,22,0.3)]'
+                        : 'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                    }`}>
+                    {loading === plan.id ? (
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <><Zap className="w-4 h-4" /> Assinar Agora</>
+                    )}
+                  </button>
+                  {plan.trialDays && (
+                    <button onClick={() => handleTrial(plan)} disabled={loading === `trial_${plan.id}`}
+                      className="w-full text-xs text-zinc-500 font-bold py-2 hover:text-zinc-300 transition-all">
+                      {loading === `trial_${plan.id}` ? '...' : `Testar grátis por ${plan.trialDays} dias`}
+                    </button>
                   )}
-                </button>
+                </div>
               )
             ) : (
               <div className="text-center text-xs text-zinc-600 font-medium py-3">
@@ -170,9 +208,9 @@ export default function Planos() {
       <div className="card-glass-static p-5 text-center">
         <p className="text-xs text-zinc-400 leading-relaxed">
           Ao assinar, você concorda com nossos termos de uso. Pagamento processado com segurança via Stripe.
-          Cancele quando quiser.
+          Cancele quando quiser. Período de teste sem compromisso.
         </p>
       </div>
     </div>
-  );
+  )
 }

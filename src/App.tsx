@@ -1,10 +1,12 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
-import type { Profile } from '@/types'
+import { useAuth } from './lib/AuthContext'
 import LoginPage from './Login'
 import MobileFrame from './components/layout/MobileFrame'
 import BottomNav from './components/layout/BottomNav'
+import ErrorBoundary from './lib/ErrorBoundary'
+import Onboarding from './components/shared/Onboarding'
+import { useStudyTimer } from './lib/useStudyTimer'
 
 const Dashboard = lazy(() => import('./components/dashboard/Dashboard'))
 const PdfLibrary = lazy(() => import('./components/pdfs/PdfLibrary'))
@@ -26,30 +28,28 @@ const AdminPDFs = lazy(() => import('./pages/admin/AdminPDFs'))
 const AdminForum = lazy(() => import('./pages/admin/AdminForum'))
 const AdminTickets = lazy(() => import('./pages/admin/AdminTicketsAdmin'))
 
-function AppRoutes() {
-  const [session, setSession] = useState<any>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+const fallback = (
+  <div className="flex items-center justify-center py-20">
+    <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+  </div>
+)
+
+function AppContent() {
+  const { session, profile, loading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const { startTimer, stopTimer } = useStudyTimer(session?.user?.id)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({ data }) => {
-          if (data) setProfile(data)
-          setLoading(false)
-        })
-      } else {
-        setLoading(false)
+    const shown = localStorage.getItem('topconcurso_onboarding')
+    if (!shown && session?.user) {
+      const signupTime = localStorage.getItem('topconcurso_signup_time')
+      if (!signupTime) {
+        setShowOnboarding(true)
+        localStorage.setItem('topconcurso_signup_time', Date.now().toString())
       }
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+    }
+  }, [session])
 
   if (loading) {
     return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">Carregando...</div>
@@ -59,43 +59,51 @@ function AppRoutes() {
     return <LoginPage />
   }
 
+  const completeOnboarding = () => {
+    setShowOnboarding(false)
+    localStorage.setItem('topconcurso_onboarding', 'true')
+  }
+
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <MobileFrame sidebarOpen={sidebarOpen}>
-      <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/pdfs" element={<PdfLibrary />} />
-          <Route path="/videos" element={<VideoLibrary />} />
-          <Route path="/questoes" element={<Questions />} />
-          <Route path="/resumos" element={<Resumos />} />
-          <Route path="/cronograma" element={<CronogramaView />} />
-          <Route path="/forum" element={<Forum />} />
-          <Route path="/tickets" element={<Tickets />} />
-          <Route path="/perfil" element={<Perfil />} />
-          <Route path="/revisao" element={<RevisaoEspacada />} />
-          <Route path="/planos" element={<Planos />} />
-          {isAdmin && <Route path="/admin" element={<AdminDashboard />} />}
-          {isAdmin && <Route path="/admin/concursos" element={<AdminConcursos />} />}
-          {isAdmin && <Route path="/admin/usuarios" element={<AdminUsuarios />} />}
-          {isAdmin && <Route path="/admin/questoes" element={<AdminQuestoes />} />}
-          {isAdmin && <Route path="/admin/aulas" element={<AdminAulas />} />}
-          {isAdmin && <Route path="/admin/pdfs" element={<AdminPDFs />} />}
-          {isAdmin && <Route path="/admin/forum" element={<AdminForum />} />}
-          {isAdmin && <Route path="/admin/tickets" element={<AdminTickets />} />}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-      <BottomNav sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} profile={profile} />
-    </MobileFrame>
+    <>
+      {showOnboarding && <Onboarding onComplete={completeOnboarding} />}
+      <MobileFrame sidebarOpen={sidebarOpen}>
+        <Suspense fallback={fallback}>
+          <Routes>
+            <Route path="/" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+            <Route path="/pdfs" element={<ErrorBoundary><PdfLibrary /></ErrorBoundary>} />
+            <Route path="/videos" element={<ErrorBoundary><VideoLibrary /></ErrorBoundary>} />
+            <Route path="/questoes" element={<ErrorBoundary><Questions /></ErrorBoundary>} />
+            <Route path="/resumos" element={<ErrorBoundary><Resumos /></ErrorBoundary>} />
+            <Route path="/cronograma" element={<ErrorBoundary><CronogramaView /></ErrorBoundary>} />
+            <Route path="/forum" element={<ErrorBoundary><Forum /></ErrorBoundary>} />
+            <Route path="/tickets" element={<ErrorBoundary><Tickets /></ErrorBoundary>} />
+            <Route path="/perfil" element={<ErrorBoundary><Perfil /></ErrorBoundary>} />
+            <Route path="/revisao" element={<ErrorBoundary><RevisaoEspacada /></ErrorBoundary>} />
+            <Route path="/planos" element={<ErrorBoundary><Planos /></ErrorBoundary>} />
+            {isAdmin && <Route path="/admin" element={<ErrorBoundary><AdminDashboard /></ErrorBoundary>} />}
+            {isAdmin && <Route path="/admin/concursos" element={<ErrorBoundary><AdminConcursos /></ErrorBoundary>} />}
+            {isAdmin && <Route path="/admin/usuarios" element={<ErrorBoundary><AdminUsuarios /></ErrorBoundary>} />}
+            {isAdmin && <Route path="/admin/questoes" element={<ErrorBoundary><AdminQuestoes /></ErrorBoundary>} />}
+            {isAdmin && <Route path="/admin/aulas" element={<ErrorBoundary><AdminAulas /></ErrorBoundary>} />}
+            {isAdmin && <Route path="/admin/pdfs" element={<ErrorBoundary><AdminPDFs /></ErrorBoundary>} />}
+            {isAdmin && <Route path="/admin/forum" element={<ErrorBoundary><AdminForum /></ErrorBoundary>} />}
+            {isAdmin && <Route path="/admin/tickets" element={<ErrorBoundary><AdminTickets /></ErrorBoundary>} />}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+        <BottomNav sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      </MobileFrame>
+    </>
   )
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <AppContent />
     </BrowserRouter>
   )
 }
