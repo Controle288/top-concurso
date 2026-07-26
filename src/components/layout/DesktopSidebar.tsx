@@ -36,9 +36,9 @@ export default function DesktopSidebar({ sidebarOpen, setSidebarOpen }: DesktopS
         sidebarOpen ? 'w-56' : 'w-16'
       }`}
     >
-      {/* Logo */}
-      <div className={`flex items-center h-14 border-b border-zinc-800/50 shrink-0 ${sidebarOpen ? 'px-5 justify-start' : 'px-0 justify-center'}`}>
-        <div className="flex items-center gap-3">
+      {/* Logo + Toggle */}
+      <div className={`flex items-center h-14 border-b border-zinc-800/50 shrink-0 ${sidebarOpen ? 'px-5' : 'px-0 justify-center'}`}>
+        <div className={`flex items-center gap-3 ${sidebarOpen ? 'flex-1' : ''}`}>
           <div className="w-8 h-8 bg-orange-500/10 rounded-xl flex items-center justify-center border border-orange-500/20 shrink-0">
             <Sparkles className="w-4 h-4 text-orange-500" />
           </div>
@@ -48,6 +48,18 @@ export default function DesktopSidebar({ sidebarOpen, setSidebarOpen }: DesktopS
             </span>
           )}
         </div>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className={`text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60 rounded-xl transition-all ${
+            sidebarOpen ? 'ml-auto w-8 h-8 flex items-center justify-center' : 'w-8 h-8 flex items-center justify-center'
+          }`}
+        >
+          {sidebarOpen ? (
+            <ChevronLeft className="w-5 h-5" />
+          ) : (
+            <ChevronRight className="w-5 h-5" />
+          )}
+        </button>
       </div>
 
       {/* Navigation */}
@@ -107,23 +119,7 @@ export default function DesktopSidebar({ sidebarOpen, setSidebarOpen }: DesktopS
       </div>
 
       {/* Bottom */}
-      <div className="border-t border-zinc-800/50 py-3 space-y-1">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`w-full flex items-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/60 rounded-xl transition-all ${
-            sidebarOpen ? 'px-3 py-2.5 gap-3 justify-start mx-2' : 'px-0 py-2.5 justify-center'
-          }`}
-        >
-          {sidebarOpen ? (
-            <>
-              <ChevronLeft className="w-5 h-5 shrink-0" />
-              <span className="text-sm font-medium whitespace-nowrap">Recolher</span>
-            </>
-          ) : (
-            <ChevronRight className="w-5 h-5" />
-          )}
-        </button>
-
+      <div className="border-t border-zinc-800/50 py-3">
         <button
           onClick={handleLogout}
           className={`w-full flex items-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all ${
