@@ -1,0 +1,6 @@
+{
+  "name": "App de Estudos para Concursos",
+  "description": "Um aplicativo mobile-first moderno e focado para preparação de concursos públicos, inspirado em plataformas de streaming.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
