@@ -83,7 +83,7 @@ export default function RevisaoEspacada() {
   const totalCards = cards.length;
 
   return (
-    <div className="flex flex-col gap-5 p-4 pb-24 select-none">
+    <div className="flex flex-col gap-5 py-4 select-none">
       <div className="flex justify-between items-center">
         <div className="space-y-1">
           <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">REVISÃO</span>

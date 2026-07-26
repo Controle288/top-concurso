@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Aula, Questao } from '@/types';
 import { Search, Play, X, Film, Clock, User, Check, CheckCircle, Brain, ChevronRight } from 'lucide-react';
+import SectionHeader from '../shared/SectionHeader';
+import EmptyState from '../shared/EmptyState';
 
 function getEmbedUrl(youtubeId: string) {
   return `https://pipedapi.kavin.rocks/embed/${youtubeId}`;
@@ -135,16 +137,10 @@ export default function VideoLibrary() {
   };
 
   return (
-    <div className="flex flex-col gap-5 p-4 pb-24 select-none">
-      <div className="space-y-1">
-        <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">VIDEOTECA</span>
-        <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-          <Film className="w-5 h-5 text-orange-500" />
-          Videoaulas
-        </h2>
-      </div>
+    <div className="flex flex-col gap-5 py-4">
+      <SectionHeader icon={Film} title="Videoaulas" subtitle="Assista e marque como concluído" />
 
-      <div className="relative">
+      <div className="relative max-w-md">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
         <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar aulas..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50 placeholder-zinc-500 transition-all" />
@@ -168,11 +164,13 @@ export default function VideoLibrary() {
         </select>
       </div>
 
-      <div className="space-y-3">
-        {loading ? (
-          <p className="text-center text-zinc-500 py-8">Carregando...</p>
-        ) : aulasFiltradas.length > 0 ? (
-          aulasFiltradas.map((aula) => (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-64 w-full rounded-2xl" />)}
+        </div>
+      ) : aulasFiltradas.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {aulasFiltradas.map((aula) => (
             <div key={aula.id} onClick={() => openAula(aula)}
               className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl overflow-hidden cursor-pointer hover:border-zinc-700/80 transition-all group relative">
               {aula.concluida && (
@@ -207,13 +205,11 @@ export default function VideoLibrary() {
                 </div>
               </div>
             </div>
-          ))
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-zinc-500 text-sm font-semibold">Nenhuma aula encontrada.</p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState icon={Film} title="Nenhuma aula encontrada" description="Tente ajustar os filtros ou buscar por outro termo" />
+      )}
 
       {selectedAula && (
         <div className="fixed inset-0 bg-black/95 z-50 flex flex-col overflow-hidden">

@@ -160,7 +160,7 @@ export default function Questions() {
     const rate = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
     return (
-      <div className="flex flex-col gap-6 p-4 pb-24 text-center select-none">
+      <div className="flex flex-col gap-6 py-4 text-center select-none">
         <div className="py-8 flex flex-col items-center justify-center gap-3">
           <div className="relative">
             <div className="absolute inset-0 bg-orange-500 rounded-full blur-xl opacity-30 animate-pulse"></div>
@@ -207,7 +207,7 @@ export default function Questions() {
   }
 
   return (
-    <div className="flex flex-col gap-5 p-4 pb-24">
+    <div className="flex flex-col gap-5 py-4">
       <div className="space-y-1">
         <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">QUESTÕES</span>
         <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">

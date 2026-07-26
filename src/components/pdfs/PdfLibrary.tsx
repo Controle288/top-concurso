@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Pdf } from '@/types';
 import { Search, FileText, Headphones, BookOpen, X, ChevronRight, Download, ExternalLink, FileCheck } from 'lucide-react';
+import SectionHeader from '../shared/SectionHeader';
+import EmptyState from '../shared/EmptyState';
 
 export default function PdfLibrary() {
   const [pdfs, setPdfs] = useState<Pdf[]>([]);
@@ -24,16 +26,10 @@ export default function PdfLibrary() {
   });
 
   return (
-    <div className="flex flex-col gap-5 p-4 pb-24 select-none">
-      <div className="space-y-1">
-        <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">BIBLIOTECA</span>
-        <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-orange-500" />
-          Materiais de Estudo
-        </h2>
-      </div>
+    <div className="flex flex-col gap-5 py-4">
+      <SectionHeader icon={BookOpen} title="Materiais de Estudo" subtitle="Biblioteca completa de PDFs, áudios e resumos" />
 
-      <div className="relative">
+      <div className="relative max-w-md">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
         <input
           type="text" value={searchQuery}
@@ -58,11 +54,13 @@ export default function PdfLibrary() {
         ))}
       </div>
 
-      <div className="space-y-3">
-        {loading ? (
-          <p className="text-center text-zinc-500 py-8">Carregando...</p>
-        ) : filteredPdfs.length > 0 ? (
-          filteredPdfs.map((pdf) => (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-24 w-full rounded-2xl" />)}
+        </div>
+      ) : filteredPdfs.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredPdfs.map((pdf) => (
             <div key={pdf.id} onClick={() => setSelectedPdf(pdf)}
               className="group bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-zinc-700/80 transition-all"
             >
@@ -83,14 +81,11 @@ export default function PdfLibrary() {
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-orange-500 transition-colors" />
             </div>
-          ))
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-zinc-500 text-sm font-semibold">Nenhum material encontrado.</p>
-            <p className="text-xs text-zinc-500 mt-1">Tente buscar por termos como "Controle" ou "Crase".</p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState icon={BookOpen} title="Nenhum material encontrado" description="Tente buscar por termos como 'Controle' ou 'Crase'" />
+      )}
 
       {selectedPdf && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-end justify-center">
