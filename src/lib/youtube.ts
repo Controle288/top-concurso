@@ -1,6 +1,29 @@
 const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || ''
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3'
 
+interface YouTubeSearchItem {
+  id: { videoId: string }
+  snippet: {
+    title: string
+    description: string
+    channelTitle: string
+    publishedAt: string
+    thumbnails?: { high?: { url: string }; default?: { url: string } }
+  }
+}
+
+interface YouTubeDetailsItem {
+  id: string
+  contentDetails?: { duration: string }
+  snippet: {
+    title: string
+    description: string
+    channelTitle: string
+    publishedAt: string
+    thumbnails?: { high?: { url: string }; default?: { url: string } }
+  }
+}
+
 export interface YouTubeSearchResult {
   id: string
   title: string
@@ -11,26 +34,31 @@ export interface YouTubeSearchResult {
   duration: string
 }
 
+export function extractYoutubeId(url: string): string | null {
+  return url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1] || null
+}
+
 export async function searchYouTubeVideos(query: string, maxResults = 10): Promise<YouTubeSearchResult[]> {
   if (!YOUTUBE_API_KEY) return []
 
   try {
-    // Step 1: Search for videos
     const searchRes = await fetch(
       `${YOUTUBE_API_BASE}/search?part=snippet&q=${encodeURIComponent(query)}&maxResults=${maxResults}&type=video&key=${YOUTUBE_API_KEY}`
     )
-    const searchData = await searchRes.json()
-    if (!searchData.items) return []
+    if (!searchRes.ok) return []
+    const searchData: { items?: YouTubeSearchItem[] } = await searchRes.json()
+    if (!searchData.items?.length) return []
 
-    const videoIds = searchData.items.map((item: any) => item.id.videoId).join(',')
+    const videoIds = searchData.items.map(item => item.id.videoId).join(',')
 
-    // Step 2: Get video details (duration)
     const detailsRes = await fetch(
       `${YOUTUBE_API_BASE}/videos?part=contentDetails,snippet&id=${videoIds}&key=${YOUTUBE_API_KEY}`
     )
-    const detailsData = await detailsRes.json()
+    if (!detailsRes.ok) return []
+    const detailsData: { items?: YouTubeDetailsItem[] } = await detailsRes.json()
+    if (!detailsData.items) return []
 
-    return (detailsData.items || []).map((item: any) => {
+    return detailsData.items.map(item => {
       const duration = item.contentDetails?.duration || 'PT0S'
       return {
         id: item.id,
@@ -47,7 +75,7 @@ export async function searchYouTubeVideos(query: string, maxResults = 10): Promi
   }
 }
 
-function formatDuration(isoDuration: string): string {
+export function formatDuration(isoDuration: string): string {
   const match = isoDuration.match(/PT(\d+H)?(\d+M)?(\d+S)?/)
   if (!match) return '0:00'
   const hours = parseInt(match[1]?.replace('H', '') || '0')

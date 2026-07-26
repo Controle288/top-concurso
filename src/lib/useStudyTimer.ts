@@ -3,17 +3,17 @@ import { supabase } from './supabase'
 
 export function useStudyTimer(userId: string | undefined) {
   const startRef = useRef<Date | null>(null)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const elapsedRef = useRef(0)
+  const userIdRef = useRef(userId)
+  userIdRef.current = userId
 
   const startTimer = useCallback(() => {
-    if (!userId) return
+    if (!userIdRef.current) return
     startRef.current = new Date()
-    elapsedRef.current = 0
-  }, [userId])
+  }, [])
 
   const stopTimer = useCallback(async () => {
-    if (!userId || !startRef.current) return
+    const uid = userIdRef.current
+    if (!uid || !startRef.current) return
     const elapsed = Math.round((Date.now() - startRef.current.getTime()) / 60000)
     if (elapsed < 1) return
 
@@ -22,7 +22,7 @@ export function useStudyTimer(userId: string | undefined) {
     const { data: existing } = await supabase
       .from('study_sessions')
       .select('id, minutos')
-      .eq('user_id', userId)
+      .eq('user_id', uid)
       .eq('data', today)
       .single()
 
@@ -34,17 +34,17 @@ export function useStudyTimer(userId: string | undefined) {
     } else {
       await supabase
         .from('study_sessions')
-        .insert({ user_id: userId, data: today, minutos: elapsed })
+        .insert({ user_id: uid, data: today, minutos: elapsed })
     }
 
     startRef.current = null
-  }, [userId])
+  }, [])
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
+      stopTimer()
     }
-  }, [])
+  }, [stopTimer])
 
   return { startTimer, stopTimer }
 }

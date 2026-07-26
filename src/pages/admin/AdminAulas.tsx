@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Film, Search, Download, Youtube } from 'lucide-react';
-import { searchYouTubeVideos } from '@/lib/youtube';
-import type { Concurso, Disciplina } from '@/types';
+import { searchYouTubeVideos, extractYoutubeId } from '@/lib/youtube';
+import type { Aula, Concurso, Disciplina } from '@/types';
 
 export default function AdminAulas() {
   const navigate = useNavigate();
-  const [aulas, setAulas] = useState<any[]>([]);
+  const [aulas, setAulas] = useState<(Aula & { concursos?: { titulo: string } | null })[]>([]);
   const [concursos, setConcursos] = useState<Concurso[]>([]);
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -19,7 +19,7 @@ export default function AdminAulas() {
   const [importQuery, setImportQuery] = useState('');
   const [importConcurso, setImportConcurso] = useState('');
   const [importDisciplina, setImportDisciplina] = useState('');
-  const [importResults, setImportResults] = useState<any[]>([]);
+  const [importResults, setImportResults] = useState<{ id: string; title: string; thumbnailUrl: string; channelTitle: string; duration: string }[]>([]);
   const [importLoading, setImportLoading] = useState(false);
 
   const load = () => {
@@ -45,18 +45,20 @@ export default function AdminAulas() {
 
   const handleSave = async () => {
     if (!form.titulo || !form.youtube_url) return;
-    const youtubeId = form.youtube_url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1] || '';
+    const youtubeId = extractYoutubeId(form.youtube_url) || '';
     const payload = { ...form, youtube_id: youtubeId, disciplina_id: form.disciplina_id || null };
     if (editing) {
-      await supabase.from('aulas').update(payload).eq('id', editing);
+      const { error } = await supabase.from('aulas').update(payload).eq('id', editing);
+      if (error) return;
     } else {
-      await supabase.from('aulas').insert(payload);
+      const { error } = await supabase.from('aulas').insert(payload);
+      if (error) return;
     }
     resetForm();
     load();
   };
 
-  const handleEdit = (a: any) => {
+  const handleEdit = (a: Aula) => {
     setForm({ titulo: a.titulo, descricao: a.descricao || '', concurso_id: a.concurso_id || '', disciplina_id: a.disciplina_id || '', youtube_url: a.youtube_url, duracao_minutos: a.duracao_minutos, instrutor: a.instrutor || '', thumbnail_url: a.thumbnail_url || '' });
     setEditing(a.id);
     setShowForm(true);
@@ -64,7 +66,8 @@ export default function AdminAulas() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir esta aula?')) return;
-    await supabase.from('aulas').delete().eq('id', id);
+    const { error } = await supabase.from('aulas').delete().eq('id', id);
+    if (error) return;
     load();
   };
 
@@ -76,10 +79,11 @@ export default function AdminAulas() {
     setImportLoading(false);
   };
 
-  const handleImportVideo = async (video: any) => {
+  const handleImportVideo = async (video: { id: string; title: string; duration: string; channelTitle: string; thumbnailUrl: string }) => {
     if (!importConcurso) return;
-    const minutos = Math.round(parseInt(video.duration.split(':')[0]) * 60 + parseInt(video.duration.split(':')[1] || '0'));
-    await supabase.from('aulas').insert({
+    const [mins, secs] = video.duration.split(':');
+    const minutos = Math.round(parseInt(mins) * 60 + parseInt(secs || '0'));
+    const { error } = await supabase.from('aulas').insert({
       titulo: video.title,
       concurso_id: importConcurso,
       disciplina_id: importDisciplina || null,
@@ -89,6 +93,7 @@ export default function AdminAulas() {
       instrutor: video.channelTitle,
       thumbnail_url: video.thumbnailUrl,
     });
+    if (error) return;
     load();
   };
 
@@ -184,7 +189,7 @@ export default function AdminAulas() {
               <div className="flex justify-between items-start gap-2">
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-bold text-zinc-100">{a.titulo}</h3>
-                  <p className="text-[10px] text-zinc-500 mt-0.5">{(a as any).concursos?.titulo || 'Sem concurso'} • {a.duracao_minutos}min • {a.instrutor || 'Sem instrutor'}</p>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">{a.concursos?.titulo || 'Sem concurso'} • {a.duracao_minutos}min • {a.instrutor || 'Sem instrutor'}</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <button onClick={() => handleEdit(a)} className="p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-orange-500"><Pencil className="w-3.5 h-3.5" /></button>

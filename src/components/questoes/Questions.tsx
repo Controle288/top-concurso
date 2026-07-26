@@ -81,7 +81,6 @@ export default function Questions() {
   const [showPremiumGate, setShowPremiumGate] = useState(false)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
-  const [totalCount, setTotalCount] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
@@ -145,6 +144,12 @@ export default function Questions() {
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [])
 
+  type QuestaoComJoin = Questao & {
+    bancas?: { nome: string } | null
+    disciplinas?: { nome: string } | null
+    concursos?: { titulo: string } | null
+  }
+
   const loadQuestions = async (pageNum: number, replace = false) => {
     setLoadingMore(true)
     let query = supabase
@@ -161,8 +166,7 @@ export default function Questions() {
     const { data, count } = await query
 
     if (data) {
-      setQuestions(prev => replace ? data : [...prev, ...data])
-      setTotalCount(count || 0)
+      setQuestions(prev => replace ? (data as QuestaoComJoin[]) : [...prev, ...(data as QuestaoComJoin[])])
       if (data.length < PAGE_SIZE) setHasMore(false)
     }
     setLoading(false)
@@ -404,11 +408,11 @@ export default function Questions() {
               <div className="space-y-1.5 select-none">
                 <div className="flex flex-wrap gap-1.5">
                   <span className="bg-orange-600/10 text-orange-400 text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider border border-orange-500/10">
-                    {(currentQuestion as any).bancas?.nome || 'Banca'}
+                    {(currentQuestion as QuestaoComJoin).bancas?.nome || 'Banca'}
                   </span>
-                  {(currentQuestion as any).concursos?.titulo && (
+                  {(currentQuestion as QuestaoComJoin).concursos?.titulo && (
                     <span className="bg-zinc-800 text-zinc-300 text-[10px] font-semibold px-2 py-0.5 rounded">
-                      {(currentQuestion as any).concursos.titulo}
+                      {(currentQuestion as QuestaoComJoin).concursos?.titulo}
                     </span>
                   )}
                   {currentQuestion.ano && (
@@ -417,7 +421,7 @@ export default function Questions() {
                 </div>
                 <h2 className="text-md font-bold text-zinc-400 flex items-center gap-1.5">
                   <span className="w-1.5 h-3.5 bg-orange-500 rounded-full" />
-                  {(currentQuestion as any).disciplinas?.nome || 'Disciplina'}
+                  {(currentQuestion as QuestaoComJoin).disciplinas?.nome || 'Disciplina'}
                 </h2>
               </div>
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useNavigate } from 'react-router-dom'
-import type { Cronograma, CronogramaDia } from '@/types'
+import type { Cronograma, CronogramaDia, CronogramaAula } from '@/types'
 import { Calendar, Plus, Check, Clock, RefreshCw, AlertTriangle, Crown, Sparkles } from 'lucide-react'
 import GerarCronograma from './GerarCronograma'
 import SectionHeader from '../shared/SectionHeader'
@@ -42,7 +42,7 @@ export default function CronogramaView() {
     if (!diasData) return;
 
     if (userId) {
-      const aulaIds = diasData.flatMap(d => d.aulas?.map((a: any) => a.aula_id).filter(Boolean) || []) as string[];
+      const aulaIds = diasData.flatMap(d => d.aulas?.map((a: CronogramaAula) => a.aula_id).filter(Boolean) || []) as string[];
       if (aulaIds.length > 0) {
         const { data: concluidas } = await supabase.from('aulas_concluidas').select('aula_id').eq('user_id', userId).in('aula_id', aulaIds);
         if (concluidas) {
@@ -90,7 +90,7 @@ export default function CronogramaView() {
     if (!selectedCronograma || !userId || diasComPendentes.length === 0) return;
     setReagendando(true);
 
-    const aulasPendentes: any[] = [];
+    const aulasPendentes: CronogramaAula[] = [];
     for (const dia of diasComPendentes) {
       if (dia.aulas) {
         for (const aula of dia.aulas) {
@@ -120,7 +120,7 @@ export default function CronogramaView() {
       }
 
       let minutosRestantes = horasPorDia * 60;
-      const aulasDoDia: any[] = [];
+      const aulasDoDia: CronogramaAula[] = [];
 
       while (restantes.length > 0 && minutosRestantes > 0) {
         const aula = restantes[0];

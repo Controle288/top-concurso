@@ -2,17 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Aula, Questao } from '@/types';
 import { Play, X, Film, Clock, User, Check, CheckCircle, Brain, ChevronRight } from 'lucide-react';
+import { extractYoutubeId } from '@/lib/youtube';
 import SectionHeader from '../shared/SectionHeader';
 import EmptyState from '../shared/EmptyState';
 import SearchBar from '../shared/SearchBar';
 
 function getEmbedUrl(youtubeId: string) {
   return `https://pipedapi.kavin.rocks/embed/${youtubeId}`;
-}
-
-function extractYoutubeId(url: string): string {
-  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  return match ? match[1] : url;
 }
 
 export default function VideoLibrary() {
@@ -193,7 +189,7 @@ export default function VideoLibrary() {
                 <h3 className="text-sm font-bold text-zinc-100 line-clamp-2">{aula.titulo}</h3>
                 <div className="flex items-center gap-2 text-[10px] text-zinc-500">
                   {aula.instrutor && <span className="flex items-center gap-1"><User className="w-3 h-3" />{aula.instrutor}</span>}
-                  {(aula as any).disciplinas?.nome && <span className="text-orange-400/80 font-semibold">{(aula as any).disciplinas.nome}</span>}
+                  {(aula as Aula & { disciplinas?: { nome: string } }).disciplinas?.nome && <span className="text-orange-400/80 font-semibold">{(aula as Aula & { disciplinas?: { nome: string } }).disciplinas?.nome}</span>}
                 </div>
               </div>
             </div>
@@ -214,7 +210,7 @@ export default function VideoLibrary() {
 
           <div className="bg-black shrink-0" style={{ height: '35vh' }}>
             <iframe
-              src={getEmbedUrl(extractYoutubeId(selectedAula.youtube_url))}
+              src={getEmbedUrl(extractYoutubeId(selectedAula.youtube_url) || selectedAula.youtube_url)}
               className="w-full h-full"
               allowFullScreen
               allow="autoplay; encrypted-media"
@@ -235,11 +231,11 @@ export default function VideoLibrary() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {(selectedAula as any).disciplinas?.nome && questoes.length > 0 && (
+            {(selectedAula as Aula & { disciplinas?: { nome: string } }).disciplinas?.nome && questoes.length > 0 && (
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-orange-500" />
                 <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                  Praticar — {questoes.length} questões sobre {(selectedAula as any).disciplinas.nome}
+                  Praticar — {questoes.length} questões sobre {(selectedAula as Aula & { disciplinas?: { nome: string } }).disciplinas?.nome}
                 </span>
               </div>
             )}

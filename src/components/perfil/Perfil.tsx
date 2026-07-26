@@ -35,10 +35,12 @@ export default function Perfil() {
   const handleSave = async () => {
     if (!profile || !nome.trim()) return;
     setSaving(true);
-    await supabase.from('profiles').update({ nome: nome.trim() }).eq('id', profile.id);
+    const { error } = await supabase.from('profiles').update({ nome: nome.trim() }).eq('id', profile.id);
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    if (!error) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
   };
 
   const handleLogout = async () => {

@@ -1,15 +1,24 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { ForumTopic, ForumComment } from '@/types'
-import { MessageSquare, Plus, Send, X, ArrowLeft, MessageCircle, User } from 'lucide-react'
+import { MessageSquare, Send, X, ArrowLeft, MessageCircle, User } from 'lucide-react'
 import SectionHeader from '../shared/SectionHeader'
 import EmptyState from '../shared/EmptyState'
 import LoadingSkeleton from '../shared/LoadingSkeleton'
 
+interface ForumTopicWithAuthor extends ForumTopic {
+  profiles?: { nome: string } | null
+  comentarios_count?: number
+}
+
+interface ForumCommentWithAuthor extends ForumComment {
+  profiles?: { nome: string } | null
+}
+
 export default function Forum() {
-  const [topics, setTopics] = useState<ForumTopic[]>([])
-  const [selectedTopic, setSelectedTopic] = useState<ForumTopic | null>(null)
-  const [comments, setComments] = useState<ForumComment[]>([])
+  const [topics, setTopics] = useState<ForumTopicWithAuthor[]>([])
+  const [selectedTopic, setSelectedTopic] = useState<ForumTopicWithAuthor | null>(null)
+  const [comments, setComments] = useState<ForumCommentWithAuthor[]>([])
   const [showForm, setShowForm] = useState(false)
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
@@ -18,7 +27,7 @@ export default function Forum() {
 
   const loadTopics = () => {
     supabase.from('forum_topics').select('*, profiles!forum_topics_user_id_fkey(nome)').order('created_at', { ascending: false }).then(({ data }) => {
-      if (data) setTopics(data)
+      if (data) setTopics(data as ForumTopicWithAuthor[])
       setLoading(false)
     })
   }
@@ -27,11 +36,11 @@ export default function Forum() {
 
   const loadComments = (topicId: string) => {
     supabase.from('forum_comments').select('*, profiles!forum_comments_user_id_fkey(nome)').eq('topic_id', topicId).order('created_at', { ascending: true }).then(({ data }) => {
-      if (data) setComments(data)
+      if (data) setComments(data as ForumCommentWithAuthor[])
     })
   }
 
-  const openTopic = (topic: ForumTopic) => {
+  const openTopic = (topic: ForumTopicWithAuthor) => {
     setSelectedTopic(topic)
     loadComments(topic.id)
   }
@@ -40,7 +49,8 @@ export default function Forum() {
     if (!titulo.trim() || !descricao.trim()) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await supabase.from('forum_topics').insert({ user_id: user.id, titulo, descricao })
+    const { error } = await supabase.from('forum_topics').insert({ user_id: user.id, titulo, descricao })
+    if (error) return
     setTitulo('')
     setDescricao('')
     setShowForm(false)
@@ -51,7 +61,8 @@ export default function Forum() {
     if (!newComment.trim() || !selectedTopic) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await supabase.from('forum_comments').insert({ topic_id: selectedTopic.id, user_id: user.id, conteudo: newComment })
+    const { error } = await supabase.from('forum_comments').insert({ topic_id: selectedTopic.id, user_id: user.id, conteudo: newComment })
+    if (error) return
     setNewComment('')
     loadComments(selectedTopic.id)
   }
@@ -68,7 +79,7 @@ export default function Forum() {
 
         <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 space-y-2">
           <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-            <User className="w-3 h-3" /> {(selectedTopic as any).profiles?.nome || 'Usuário'}
+            <User className="w-3 h-3" /> {selectedTopic.profiles?.nome || 'Usuário'}
             <span>•</span>
             <span>{new Date(selectedTopic.created_at).toLocaleDateString('pt-BR')}</span>
           </div>
@@ -91,7 +102,7 @@ export default function Forum() {
           {comments.map(c => (
             <div key={c.id} className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-3.5 space-y-1">
               <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-                <User className="w-3 h-3" /> {(c as any).profiles?.nome || 'Usuário'}
+                <User className="w-3 h-3" /> {c.profiles?.nome || 'Usuário'}
                 <span>•</span>
                 <span>{new Date(c.created_at).toLocaleDateString('pt-BR')}</span>
               </div>
@@ -158,9 +169,9 @@ export default function Forum() {
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-2 text-[10px] text-zinc-500">
-                <User className="w-3 h-3" /> {(t as any).profiles?.nome || 'Usuário'}
+                <User className="w-3 h-3" /> {t.profiles?.nome || 'Usuário'}
                 <span>•</span>
-                <MessageCircle className="w-3 h-3" /> {(t as any).comentarios_count || 0}
+                <MessageCircle className="w-3 h-3" /> {t.comentarios_count ?? 0}
               </div>
             </div>
           ))}
