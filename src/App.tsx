@@ -28,6 +28,7 @@ function AppRoutes() {
   const [session, setSession] = useState<any>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -59,7 +60,7 @@ function AppRoutes() {
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <MobileFrame>
+    <MobileFrame sidebarOpen={sidebarOpen}>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/pdfs" element={<PdfLibrary />} />
@@ -81,7 +82,7 @@ function AppRoutes() {
         {isAdmin && <Route path="/admin/tickets" element={<AdminTickets />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <BottomNav />
+      <BottomNav sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
     </MobileFrame>
   )
 }
