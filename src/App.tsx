@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
 import LoginPage from './Login'
 import MobileFrame from './components/layout/MobileFrame'
+import DesktopSidebar from './components/layout/DesktopSidebar'
 import BottomNav from './components/layout/BottomNav'
 import ErrorBoundary from './lib/ErrorBoundary'
 import Onboarding from './components/shared/Onboarding'
@@ -38,7 +39,7 @@ function AppContent() {
   const { session, profile, loading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const { startTimer, stopTimer } = useStudyTimer(session?.user?.id)
+  useStudyTimer(session?.user?.id)
 
   useEffect(() => {
     const shown = localStorage.getItem('topconcurso_onboarding')
@@ -69,6 +70,7 @@ function AppContent() {
   return (
     <>
       {showOnboarding && <Onboarding onComplete={completeOnboarding} />}
+      <DesktopSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       <MobileFrame sidebarOpen={sidebarOpen}>
         <Suspense fallback={fallback}>
           <Routes>
@@ -94,7 +96,7 @@ function AppContent() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-        <BottomNav sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <BottomNav />
       </MobileFrame>
     </>
   )

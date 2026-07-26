@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { redirectToCheckout, createPortalSession } from '@/lib/stripe'
 import { Sparkles, Check, Crown, Zap, Gift } from 'lucide-react'
+import SectionHeader from '../shared/SectionHeader'
 
 const PLANS = [
   {
@@ -95,13 +96,7 @@ export default function Planos() {
 
   return (
     <div className="flex flex-col gap-6 py-4">
-      <div className="space-y-1">
-        <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">ASSINATURA</span>
-        <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-          <Crown className="w-5 h-5 text-orange-500" />
-          Escolha seu Plano
-        </h2>
-      </div>
+      <SectionHeader icon={Crown} title="Escolha seu Plano" subtitle="Assinatura Premium" />
 
       {profile?.assinatura_ativa && (
         <div className="card-glass p-5 flex items-center justify-between">

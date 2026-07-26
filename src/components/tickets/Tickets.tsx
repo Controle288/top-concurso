@@ -1,63 +1,64 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Ticket, TicketMessage } from '@/types';
-import { HelpCircle, Plus, Send, X, ArrowLeft, User, MessageCircle } from 'lucide-react';
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import type { Ticket, TicketMessage } from '@/types'
+import { HelpCircle, Plus, Send, X, ArrowLeft, User, MessageCircle } from 'lucide-react'
+import SectionHeader from '../shared/SectionHeader'
+import EmptyState from '../shared/EmptyState'
+import LoadingSkeleton from '../shared/LoadingSkeleton'
 
 export default function Tickets() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [messages, setMessages] = useState<TicketMessage[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [assunto, setAssunto] = useState('');
-  const [descricao, setDescricao] = useState('');
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [messages, setMessages] = useState<TicketMessage[]>([])
+  const [showForm, setShowForm] = useState(false)
+  const [assunto, setAssunto] = useState('')
+  const [descricao, setDescricao] = useState('')
+  const [newMessage, setNewMessage] = useState('')
+  const [loading, setLoading] = useState(true)
 
   const loadTickets = () => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
+      if (!user) return
       supabase.from('tickets').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).then(({ data }) => {
-        if (data) setTickets(data);
-        setLoading(false);
-      });
-    });
-  };
+        if (data) setTickets(data)
+        setLoading(false)
+      })
+    })
+  }
 
-  useEffect(() => { loadTickets(); }, []);
+  useEffect(() => { loadTickets() }, [])
 
   const loadMessages = (ticketId: string) => {
-    supabase.from('ticket_messages').select('*, profiles!ticket_messages_user_id_fkey(nome)').eq('ticket_id', ticketId).order('created_at', { ascending: true }).then(({ data }) => {
-      if (data) setMessages(data);
-    });
-  };
+    supabase.from('ticket_messages').select('*, profiles!ticket_messages_user_id_fkey(nome, role)').eq('ticket_id', ticketId).order('created_at', { ascending: true }).then(({ data }) => {
+      if (data) setMessages(data)
+    })
+  }
 
   const openTicket = (ticket: Ticket) => {
-    setSelectedTicket(ticket);
-    loadMessages(ticket.id);
-  };
+    setSelectedTicket(ticket)
+    loadMessages(ticket.id)
+  }
 
   const handleCreateTicket = async () => {
-    if (!assunto.trim() || !descricao.trim()) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase.from('tickets').insert({ user_id: user.id, assunto, descricao });
-    setAssunto('');
-    setDescricao('');
-    setShowForm(false);
-    loadTickets();
-  };
+    if (!assunto.trim() || !descricao.trim()) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('tickets').insert({ user_id: user.id, assunto, descricao })
+    setAssunto('')
+    setDescricao('')
+    setShowForm(false)
+    loadTickets()
+  }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedTicket) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase.from('ticket_messages').insert({ ticket_id: selectedTicket.id, user_id: user.id, mensagem: newMessage });
-    setNewMessage('');
-    loadMessages(selectedTicket.id);
-    loadTickets();
-  };
+    if (!newMessage.trim() || !selectedTicket) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('ticket_messages').insert({ ticket_id: selectedTicket.id, user_id: user.id, mensagem: newMessage })
+    setNewMessage('')
+    loadMessages(selectedTicket.id)
+    loadTickets()
+  }
 
   if (selectedTicket) {
     return (
@@ -83,6 +84,12 @@ export default function Tickets() {
         </div>
 
         <div className="space-y-3 flex-1">
+          {messages.length === 0 && (
+            <div className="text-center py-6">
+              <MessageCircle className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+              <p className="text-xs text-zinc-500">Aguardando resposta do suporte.</p>
+            </div>
+          )}
           {messages.map(m => (
             <div key={m.id} className={`flex gap-2.5 ${(m as any).profiles?.role === 'admin' ? 'flex-row-reverse' : ''}`}>
               <div className={`bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-3.5 max-w-[85%] ${(m as any).profiles?.role === 'admin' ? 'bg-orange-500/5 border-orange-500/20' : ''}`}>
@@ -106,26 +113,20 @@ export default function Tickets() {
           </div>
         )}
       </div>
-    );
+    )
   }
 
   return (
-    <div className="flex flex-col gap-5 py-4">
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">SUPORTE</span>
-          <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-orange-500" />
-            Meus Tickets
-          </h2>
-        </div>
-        <button onClick={() => setShowForm(true)} className="bg-orange-500 text-black p-2.5 rounded-full shadow-[0_4px_12px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-all">
-          <Plus className="w-5 h-5" />
-        </button>
-      </div>
+    <div className="flex flex-col gap-4 py-4">
+      <SectionHeader
+        icon={HelpCircle}
+        title="Meus Tickets"
+        subtitle="Entre em contato com o suporte"
+        action={{ label: 'Novo Ticket', onClick: () => { setShowForm(true); setAssunto(''); setDescricao('') } }}
+      />
 
       {showForm && (
-        <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3">
+        <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3 animate-fadeIn">
           <input value={assunto} onChange={(e) => setAssunto(e.target.value)}
             placeholder="Assunto..." className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
           <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)}
@@ -139,13 +140,9 @@ export default function Tickets() {
       )}
 
       {loading ? (
-        <p className="text-center text-zinc-500 py-8">Carregando...</p>
+        <LoadingSkeleton variant="list" lines={4} />
       ) : tickets.length === 0 ? (
-        <div className="text-center py-12">
-          <HelpCircle className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-          <p className="text-zinc-500 text-sm font-semibold">Nenhum ticket.</p>
-          <p className="text-xs text-zinc-500 mt-1">Crie um ticket para entrar em contato com o suporte.</p>
-        </div>
+        <EmptyState icon={HelpCircle} title="Nenhum ticket" description="Crie um ticket para entrar em contato com o suporte." />
       ) : (
         <div className="space-y-2.5">
           {tickets.map(t => (
@@ -171,5 +168,5 @@ export default function Tickets() {
         </div>
       )}
     </div>
-  );
+  )
 }

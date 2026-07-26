@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useNavigate } from 'react-router-dom';
-import type { Cronograma, CronogramaDia } from '@/types';
-import { Calendar, Plus, Check, Clock, RefreshCw, AlertTriangle, Crown, Sparkles } from 'lucide-react';
-import GerarCronograma from './GerarCronograma';
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useNavigate } from 'react-router-dom'
+import type { Cronograma, CronogramaDia } from '@/types'
+import { Calendar, Plus, Check, Clock, RefreshCw, AlertTriangle, Crown, Sparkles } from 'lucide-react'
+import GerarCronograma from './GerarCronograma'
+import SectionHeader from '../shared/SectionHeader'
+import LoadingSkeleton from '../shared/LoadingSkeleton'
 
 export default function CronogramaView() {
   const navigate = useNavigate();
@@ -179,37 +181,31 @@ export default function CronogramaView() {
   }
 
   return (
-    <div className="flex flex-col gap-5 py-4">
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">PLANEJAMENTO</span>
-          <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-orange-500" />
-            Cronograma
-          </h2>
-        </div>
-        <button onClick={async () => {
+    <div className="flex flex-col gap-4 py-4">
+      <SectionHeader
+        icon={Calendar}
+        title="Cronograma"
+        subtitle="Planeje seus estudos"
+        action={{ label: 'Criar', onClick: async () => {
           if (isPremium === null) {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-              const { data: p } = await supabase.from('profiles').select('assinatura_ativa, role').eq('id', user.id).single();
-              setIsPremium(p?.assinatura_ativa || p?.role === 'admin');
+              const { data: p } = await supabase.from('profiles').select('assinatura_ativa, role').eq('id', user.id).single()
+              setIsPremium(p?.assinatura_ativa || p?.role === 'admin')
             } else {
-              setIsPremium(false);
+              setIsPremium(false)
             }
           }
           if (isPremium === false) {
-            navigate('/planos');
-            return;
+            navigate('/planos')
+            return
           }
-          setShowGerar(true);
-        }} className="bg-orange-500 text-black p-2.5 rounded-full shadow-[0_4px_12px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-all">
-          <Plus className="w-5 h-5" />
-        </button>
-      </div>
+          setShowGerar(true)
+        } }}
+      />
 
       {loading ? (
-        <p className="text-center text-zinc-500 py-8">Carregando...</p>
+        <LoadingSkeleton variant="list" lines={3} />
       ) : cronogramas.length === 0 ? (
         <div className="text-center py-12 space-y-3">
           <Calendar className="w-12 h-12 text-zinc-700 mx-auto" />

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, memo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { Brain, RotateCcw, Check, X, Plus, Trash2, Sparkles, Download, Upload } from 'lucide-react'
+import SectionHeader from '../shared/SectionHeader'
 
 interface FlashCard {
   id: string
@@ -195,16 +196,10 @@ export default function RevisaoEspacada() {
   const totalCards = cards.length
 
   return (
-    <div className="flex flex-col gap-5 py-4 select-none">
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">REVISÃO</span>
-          <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-            <Brain className="w-5 h-5 text-orange-500" />
-            Flashcards
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-4 py-4 select-none">
+      <div className="flex items-start justify-between gap-2">
+        <SectionHeader icon={Brain} title="Flashcards" subtitle="Revisão espaçada" />
+        <div className="flex items-center gap-2 shrink-0 mt-1">
           {syncing && <span className="text-[10px] text-zinc-500">Sincronizando...</span>}
           <button onClick={exportCards} className="bg-zinc-800 text-zinc-400 p-2.5 rounded-full hover:bg-zinc-700 transition-all" title="Exportar">
             <Download className="w-4 h-4" />

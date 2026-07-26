@@ -1,86 +1,82 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Resumo } from '@/types';
-import { FileText, Plus, Edit3, Trash2, Save, X, BookOpen } from 'lucide-react';
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import type { Resumo } from '@/types'
+import { BookOpen, Plus, Edit3, Trash2, Save, X } from 'lucide-react'
+import SectionHeader from '../shared/SectionHeader'
+import EmptyState from '../shared/EmptyState'
+import LoadingSkeleton from '../shared/LoadingSkeleton'
 
 export default function Resumos() {
-  const [resumos, setResumos] = useState<Resumo[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [titulo, setTitulo] = useState('');
-  const [conteudo, setConteudo] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [resumos, setResumos] = useState<Resumo[]>([])
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [titulo, setTitulo] = useState('')
+  const [conteudo, setConteudo] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   const loadResumos = () => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
+      if (!user) return
       supabase.from('resumos').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }).then(({ data }) => {
-        if (data) setResumos(data);
-        setLoading(false);
-      });
-    });
-  };
+        if (data) setResumos(data)
+        setLoading(false)
+      })
+    })
+  }
 
-  useEffect(() => { loadResumos(); }, []);
+  useEffect(() => { loadResumos() }, [])
 
   const handleSave = async () => {
-    if (!titulo.trim() || !conteudo.trim()) return;
-    setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!titulo.trim() || !conteudo.trim()) return
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
     if (editingId) {
-      await supabase.from('resumos').update({ titulo, conteudo, updated_at: new Date().toISOString() }).eq('id', editingId);
+      await supabase.from('resumos').update({ titulo, conteudo, updated_at: new Date().toISOString() }).eq('id', editingId)
     } else {
-      await supabase.from('resumos').insert({ user_id: user.id, titulo, conteudo });
+      await supabase.from('resumos').insert({ user_id: user.id, titulo, conteudo })
     }
 
-    setTitulo('');
-    setConteudo('');
-    setEditingId(null);
-    setShowForm(false);
-    setSaving(false);
-    loadResumos();
-  };
+    setTitulo('')
+    setConteudo('')
+    setEditingId(null)
+    setShowForm(false)
+    setSaving(false)
+    loadResumos()
+  }
 
   const handleEdit = (r: Resumo) => {
-    setTitulo(r.titulo);
-    setConteudo(r.conteudo);
-    setEditingId(r.id);
-    setShowForm(true);
-  };
+    setTitulo(r.titulo)
+    setConteudo(r.conteudo)
+    setEditingId(r.id)
+    setShowForm(true)
+  }
 
   const handleDelete = async (id: string) => {
-    await supabase.from('resumos').delete().eq('id', id);
-    loadResumos();
-  };
+    await supabase.from('resumos').delete().eq('id', id)
+    loadResumos()
+  }
 
   const handleCancel = () => {
-    setTitulo('');
-    setConteudo('');
-    setEditingId(null);
-    setShowForm(false);
-  };
+    setTitulo('')
+    setConteudo('')
+    setEditingId(null)
+    setShowForm(false)
+  }
 
   return (
-    <div className="flex flex-col gap-5 py-4">
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">RESUMOS</span>
-          <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-orange-500" />
-            Meus Resumos
-          </h2>
-        </div>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setTitulo(''); setConteudo(''); }}
-          className="bg-orange-500 text-black p-2.5 rounded-full shadow-[0_4px_12px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-all">
-          <Plus className="w-5 h-5" />
-        </button>
-      </div>
+    <div className="flex flex-col gap-4 py-4">
+      <SectionHeader
+        icon={BookOpen}
+        title="Meus Resumos"
+        subtitle="Crie e gerencie seus resumos de estudo"
+        action={{ label: 'Novo Resumo', onClick: () => { setShowForm(true); setEditingId(null); setTitulo(''); setConteudo('') } }}
+      />
 
       {showForm && (
-        <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3">
+        <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3 animate-fadeIn">
           <input value={titulo} onChange={(e) => setTitulo(e.target.value)}
             placeholder="Título do resumo..." className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
           <textarea value={conteudo} onChange={(e) => setConteudo(e.target.value)}
@@ -99,13 +95,9 @@ export default function Resumos() {
       )}
 
       {loading ? (
-        <p className="text-center text-zinc-500 py-8">Carregando...</p>
+        <LoadingSkeleton variant="list" lines={4} />
       ) : resumos.length === 0 && !showForm ? (
-        <div className="text-center py-12">
-          <FileText className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-          <p className="text-zinc-500 text-sm font-semibold">Nenhum resumo ainda.</p>
-          <p className="text-xs text-zinc-500 mt-1">Clique no botão + para criar seu primeiro resumo.</p>
-        </div>
+        <EmptyState icon={BookOpen} title="Nenhum resumo ainda" description="Clique em 'Novo Resumo' para criar seu primeiro resumo." />
       ) : (
         <div className="space-y-3">
           {resumos.map((r) => (
@@ -128,5 +120,5 @@ export default function Resumos() {
         </div>
       )}
     </div>
-  );
+  )
 }

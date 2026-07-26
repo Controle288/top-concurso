@@ -5,6 +5,7 @@ import type { Questao } from '@/types'
 import { Check, X, ChevronRight, Award, RotateCcw, AlertCircle, Sparkles, Trophy, Timer, Play, Crown } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import QuestionComments from '@/components/shared/QuestionComments'
+import SectionHeader from '../shared/SectionHeader'
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60)
@@ -306,14 +307,8 @@ export default function Questions() {
   }
 
   return (
-    <div className="flex flex-col gap-5 py-4">
-      <div className="space-y-1">
-        <span className="text-orange-500 text-xs font-bold uppercase tracking-wider block">QUESTÕES</span>
-        <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-          <Award className="w-5 h-5 text-orange-500" />
-          Simulados
-        </h2>
-      </div>
+    <div className="flex flex-col gap-4 py-4">
+      <SectionHeader icon={Award} title="Simulados" subtitle="Pratique com questões de concursos" />
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         <select value={filterBanca} onChange={(e) => setFilterBanca(e.target.value)}
