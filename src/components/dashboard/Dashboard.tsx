@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles, Flame, Check, Clock, BookOpen, HelpCircle,
-  LogOut, User, Brain, Film, BarChart3, Bell, Zap, Target, ChevronRight
+  LogOut, User, Brain, Film, BarChart3, Bell, Zap, Target, ChevronRight, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import NewsMural from './NewsMural';
@@ -19,13 +19,14 @@ export default function Dashboard() {
     { id: 't2', title: 'Revisar Atos Administrativos', type: 'Revisão', subject: 'Direito Administrativo', completed: false, duration: '30 min' },
     { id: 't3', title: 'Resolver 15 Questões de Crase', type: 'Exercícios', subject: 'Língua Portuguesa', completed: false, duration: '40 min' },
     { id: 't4', title: 'Ler Lei 8.112/90 (Arts. 1º ao 20)', type: 'Teoria', subject: 'Direito Administrativo', completed: false, duration: '25 min' },
-  ] as const;
+  ];
 
   const [tasks, setTasks] = useState<{ id: string; title: string; type: string; subject: string; completed: boolean; duration: string }[]>([]);
   const [questStats, setQuestStats] = useState({ total: 0, correct: 0, rate: 0 });
   const [aulasConcluidas, setAulasConcluidas] = useState(0);
   const [concursoProgress, setConcursoProgress] = useState<{ id: string; titulo: string; total: number; concluido: number }[]>([]);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null);
+  const [tasksExpanded, setTasksExpanded] = useState(true);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -286,59 +287,66 @@ export default function Dashboard() {
         </div>
       )}
 
-      <NewsMural />
-      <ConcursosAbertos />
-
       {/* Tarefas do Dia */}
       <div className="space-y-3 animate-slideUp">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center cursor-pointer select-none" onClick={() => setTasksExpanded(!tasksExpanded)}>
           <h2 className="text-md font-bold text-white tracking-tight flex items-center gap-2">
             <span className="w-1 h-5 bg-orange-500 rounded-full" />
             Tarefas do Dia
           </h2>
-          <span className="text-xs text-orange-500 font-semibold font-mono">{completionPct}%</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-500 font-mono">{completionPct}%</span>
+            <button className="text-zinc-600 hover:text-zinc-400 transition-colors p-1">
+              {tasksExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
-        <div className="space-y-2.5">
-          {tasks.map((task) => {
-            const tc = typeColor(task.type);
-            return (
-              <div
-                key={task.id}
-                onClick={() => toggleTask(task.id)}
-                className={`card-glass p-4 flex items-center justify-between transition-all duration-200 cursor-pointer select-none ${
-                  task.completed ? 'opacity-60' : 'hover:border-zinc-700/60'
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className={`w-5 h-5 rounded-lg flex items-center justify-center border-2 transition-all ${
-                    task.completed
-                      ? 'bg-orange-500 border-orange-500'
-                      : 'border-zinc-700 bg-zinc-900/80'
-                  }`}>
-                    {task.completed && <Check className="w-3 h-3 stroke-[4px] text-black" />}
-                  </div>
-                  <div className="space-y-1">
-                    <p className={`text-sm font-semibold transition-all ${task.completed ? 'line-through text-zinc-600' : 'text-zinc-100'}`}>
-                      {task.title}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${tc.bg} ${tc.text}`}>
-                        {task.type}
-                      </span>
-                      <span className="text-zinc-700 text-[10px]">•</span>
-                      <span className="text-[10px] text-zinc-600 font-medium">{task.subject}</span>
+        {tasksExpanded && (
+          <div className="space-y-2.5">
+            {tasks.map((task) => {
+              const tc = typeColor(task.type);
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => toggleTask(task.id)}
+                  className={`card-glass p-4 flex items-center justify-between transition-all duration-200 cursor-pointer select-none ${
+                    task.completed ? 'opacity-60' : 'hover:border-zinc-700/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className={`w-5 h-5 rounded-lg flex items-center justify-center border-2 transition-all ${
+                      task.completed
+                        ? 'bg-orange-500 border-orange-500'
+                        : 'border-zinc-700 bg-zinc-900/80'
+                    }`}>
+                      {task.completed && <Check className="w-3 h-3 stroke-[4px] text-black" />}
+                    </div>
+                    <div className="space-y-1">
+                      <p className={`text-sm font-semibold transition-all ${task.completed ? 'line-through text-zinc-600' : 'text-zinc-100'}`}>
+                        {task.title}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${tc.bg} ${tc.text}`}>
+                          {task.type}
+                        </span>
+                        <span className="text-zinc-700 text-[10px]">•</span>
+                        <span className="text-[10px] text-zinc-600 font-medium">{task.subject}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-1 text-zinc-600 font-mono text-[11px]">
+                    <Clock className="w-3 h-3" />
+                    <span>{task.duration}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 text-zinc-600 font-mono text-[11px]">
-                  <Clock className="w-3 h-3" />
-                  <span>{task.duration}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      <NewsMural />
+      <ConcursosAbertos />
     </div>
   );
 }
