@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { User, Save, Mail, Shield, LogOut, ArrowLeft, Calendar, CheckCircle, Film, Brain } from 'lucide-react';
+import { User, Save, Mail, Shield, LogOut, ArrowLeft, Calendar, CheckCircle, Film, Brain, Crown } from 'lucide-react';
 import type { Profile } from '@/types';
 
 export default function Perfil() {
@@ -75,7 +75,27 @@ export default function Perfil() {
         </div>
       </div>
 
-      <div className="bg-zinc-900/60 rounded-2xl p-4 border border-zinc-800/80 space-y-3">
+      <button onClick={() => navigate('/planos')}
+        className={`card-glass p-4 flex items-center justify-between w-full text-left cursor-pointer hover:border-zinc-700/60 transition-all ${
+          profile?.assinatura_ativa ? 'border-orange-500/40' : ''
+        }`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+            profile?.assinatura_ativa ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-zinc-900 border border-zinc-800'
+          }`}>
+            <Crown className={`w-5 h-5 ${profile?.assinatura_ativa ? 'text-orange-500' : 'text-zinc-500'}`} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white">{profile?.assinatura_ativa ? 'Premium Ativo' : 'Plano Gratuito'}</p>
+            <p className="text-[11px] text-zinc-500">{profile?.assinatura_ativa ? 'Aproveite todos os recursos' : 'Ative o Premium e desbloqueie tudo'}</p>
+          </div>
+        </div>
+        <span className="text-xs text-orange-500 font-bold flex items-center gap-1">
+          {profile?.assinatura_ativa ? 'Gerenciar' : 'Ver planos'} <ArrowLeft className="w-3 h-3 rotate-180" />
+        </span>
+      </button>
+
+      <div className="card-glass-static p-4 space-y-3">
         <div className="space-y-1">
           <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1">
             <User className="w-3 h-3" /> Nome
@@ -103,7 +123,7 @@ export default function Perfil() {
           <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1">
             <Shield className="w-3 h-3" /> Tipo de conta
           </label>
-          <p className="text-sm text-zinc-300 px-1 capitalize">{profile?.role === 'admin' ? 'Administrador' : 'Aluno (Gratuito)'}</p>
+          <p className="text-sm text-zinc-300 px-1 capitalize">{profile?.role === 'admin' ? 'Administrador' : profile?.assinatura_ativa ? 'Aluno Premium' : 'Aluno (Gratuito)'}</p>
         </div>
 
         <button onClick={handleSave} disabled={saving || !nome.trim()}

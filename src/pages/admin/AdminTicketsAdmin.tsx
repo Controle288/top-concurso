@@ -51,7 +51,7 @@ export default function AdminTicketsAdmin() {
 
   if (selectedTicket) {
     return (
-      <div className="flex flex-col gap-4 p-4 pb-24">
+      <div className="flex flex-col gap-4 py-4">
         <div className="flex items-center gap-3">
           <button onClick={() => setSelectedTicket(null)} className="p-2 bg-zinc-900 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
           <div className="flex-1 min-w-0">
@@ -93,7 +93,7 @@ export default function AdminTicketsAdmin() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-24">
+    <div className="flex flex-col gap-4 py-4">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate('/admin')} className="p-2 bg-zinc-900 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></button>
         <div>

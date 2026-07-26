@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 import type { Questao } from '@/types';
-import { Check, X, ChevronRight, Award, RotateCcw, AlertCircle, Sparkles, Trophy, Timer, Play } from 'lucide-react';
+import { Check, X, ChevronRight, Award, RotateCcw, AlertCircle, Sparkles, Trophy, Timer, Play, Crown } from 'lucide-react';
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -30,7 +31,10 @@ export default function Questions() {
   const [tempoRestante, setTempoRestante] = useState(0);
   const [tempoTotal, setTempoTotal] = useState(0);
   const [provaAtiva, setProvaAtiva] = useState(false);
+  const [showPremiumGate, setShowPremiumGate] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const navigate = useNavigate();
 
   const TEMPO_POR_QUESTAO = 90;
 
@@ -74,9 +78,17 @@ export default function Questions() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  const iniciarProva = () => {
+  const iniciarProva = async () => {
     const total = filteredQuestions.length;
     if (total === 0) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('assinatura_ativa, role').eq('id', user.id).single();
+      if (!profile?.assinatura_ativa && profile?.role !== 'admin') {
+        setShowPremiumGate(true);
+        return;
+      }
+    }
     const segundos = total * TEMPO_POR_QUESTAO;
     setTempoTotal(segundos);
     setTempoRestante(segundos);
@@ -248,10 +260,32 @@ export default function Questions() {
               <p className="text-[10px] text-zinc-400">{filteredQuestions.length} questões • {filteredQuestions.length * TEMPO_POR_QUESTAO / 60} min</p>
             </div>
           </div>
-          <button onClick={() => { setModoProva(true); iniciarProva(); }}
+          <button onClick={() => iniciarProva()}
             className="w-full bg-orange-500 text-black font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 transition-all active:scale-95">
             <Play className="w-5 h-5" /> Iniciar Simulado com Timer
           </button>
+        </div>
+      )}
+
+      {showPremiumGate && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="card-glass p-6 max-w-sm w-full text-center space-y-4">
+            <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto border-2 border-orange-500/30">
+              <Crown className="w-8 h-8 text-orange-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">Modo Prova é Premium</h3>
+              <p className="text-sm text-zinc-400 mt-1">Assine o Premium e desbloqueie o simulado com timer cronometrado.</p>
+            </div>
+            <button onClick={() => navigate('/planos')}
+              className="w-full bg-orange-500 text-black font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 transition-all">
+              <Sparkles className="w-4 h-4" /> Ver Planos
+            </button>
+            <button onClick={() => setShowPremiumGate(false)}
+              className="text-xs text-zinc-500 font-bold hover:text-zinc-300 transition-all">
+              Voltar
+            </button>
+          </div>
         </div>
       )}
 

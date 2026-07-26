@@ -115,7 +115,7 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
   };
 
   return (
-    <div className="flex flex-col gap-5 p-4 pb-24">
+    <div className="flex flex-col gap-5 py-4">
       <div className="flex items-center gap-3">
         <button onClick={onVoltar} className="p-2 bg-zinc-900 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all">
           <ArrowLeft className="w-5 h-5" />
@@ -129,7 +129,7 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
         </div>
       </div>
 
-      <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 space-y-5">
+      <div className="card-glass-static p-5 space-y-5">
         <div className="space-y-2">
           <label className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Concurso / Curso</label>
           <select value={concursoId} onChange={(e) => setConcursoId(e.target.value)}

@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles, Flame, Check, Clock, BookOpen, HelpCircle,
-  LogOut, User, Brain, Film, BarChart3, Bell, Zap, Target, ChevronRight, ChevronDown, ChevronUp
+  LogOut, User, Brain, Film, BarChart3, Bell, BellOff, Zap, Target, ChevronRight, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '@/lib/notifications';
 import NewsMural from './NewsMural';
 import ConcursosAbertos from './ConcursosAbertos';
 import type { Profile } from '@/types';
@@ -18,6 +19,8 @@ export default function Dashboard() {
   const [aulasConcluidas, setAulasConcluidas] = useState(0);
   const [concursoProgress, setConcursoProgress] = useState<{ id: string; titulo: string; total: number; concluido: number }[]>([]);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [tasksLoading, setTasksLoading] = useState(true);
 
@@ -41,6 +44,7 @@ export default function Dashboard() {
     loadAulasConcluidas();
     loadConcursoProgress();
     setNotifPermission(Notification.permission);
+    isPushSubscribed().then(setPushSubscribed);
   }, []);
 
   const handleLogout = async () => {
@@ -56,11 +60,20 @@ export default function Dashboard() {
   };
 
   const solicitarNotificacao = async () => {
-    const perm = await Notification.requestPermission();
-    setNotifPermission(perm);
-    if (perm === 'granted') {
-      new Notification('Top Concurso', { body: 'Notificações ativadas!', icon: '/icon.svg' });
+    setPushLoading(true);
+    const ok = await subscribeToPush();
+    if (ok) {
+      setPushSubscribed(true);
+      setNotifPermission('granted');
     }
+    setPushLoading(false);
+  };
+
+  const desativarNotificacao = async () => {
+    setPushLoading(true);
+    await unsubscribeFromPush();
+    setPushSubscribed(false);
+    setPushLoading(false);
   };
 
   const loadConcursoProgress = async () => {
@@ -142,7 +155,7 @@ export default function Dashboard() {
           </h1>
           <p className="text-xs text-zinc-500 font-medium mt-0.5">Vamos estudar com foco hoje!</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
           <div className="flex items-center gap-1.5 bg-zinc-900/60 border border-orange-500/15 rounded-xl px-3 py-1.5">
             <Flame className="w-4 h-4 text-orange-500 fill-orange-500/30" />
             <span className="text-xs font-bold text-orange-500">7 DIAS</span>
@@ -200,12 +213,22 @@ export default function Dashboard() {
         )}
 
         {/* Notificações */}
-        {notifPermission !== 'granted' && (
-          <button onClick={solicitarNotificacao} className="card-glass p-5 flex items-center gap-3 hover:border-zinc-700/60 text-left cursor-pointer">
+        {pushSubscribed ? (
+          <button onClick={desativarNotificacao} disabled={pushLoading}
+            className="card-glass p-5 flex items-center gap-3 hover:border-zinc-700/60 text-left cursor-pointer disabled:opacity-50">
+            <BellOff className="w-5 h-5 text-zinc-500 shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-zinc-200">Notificações Ativas</p>
+              <p className="text-[11px] text-zinc-500 mt-0.5">Clique para desativar</p>
+            </div>
+          </button>
+        ) : notifPermission !== 'granted' && (
+          <button onClick={solicitarNotificacao} disabled={pushLoading}
+            className="card-glass p-5 flex items-center gap-3 hover:border-zinc-700/60 text-left cursor-pointer disabled:opacity-50">
             <Bell className="w-5 h-5 text-orange-500 shrink-0" />
             <div>
-              <p className="text-sm font-bold text-zinc-200">Ativar Notificações</p>
-              <p className="text-[11px] text-zinc-500 mt-0.5">Receba lembretes</p>
+              <p className="text-sm font-bold text-zinc-200">{pushLoading ? 'Ativando...' : 'Ativar Notificações'}</p>
+              <p className="text-[11px] text-zinc-500 mt-0.5">Receba lembretes de estudos</p>
             </div>
           </button>
         )}

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 import type { Cronograma, CronogramaDia } from '@/types';
-import { Calendar, Plus, Check, Clock, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Calendar, Plus, Check, Clock, RefreshCw, AlertTriangle, Crown, Sparkles } from 'lucide-react';
 import GerarCronograma from './GerarCronograma';
 
 export default function CronogramaView() {
+  const navigate = useNavigate();
   const [cronogramas, setCronogramas] = useState<Cronograma[]>([]);
   const [selectedCronograma, setSelectedCronograma] = useState<string | null>(null);
   const [dias, setDias] = useState<CronogramaDia[]>([]);
@@ -12,6 +14,7 @@ export default function CronogramaView() {
   const [loading, setLoading] = useState(true);
   const [reagendando, setReagendando] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState<boolean | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -185,7 +188,22 @@ export default function CronogramaView() {
             Cronograma
           </h2>
         </div>
-        <button onClick={() => setShowGerar(true)} className="bg-orange-500 text-black p-2.5 rounded-full shadow-[0_4px_12px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-all">
+        <button onClick={async () => {
+          if (isPremium === null) {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: p } = await supabase.from('profiles').select('assinatura_ativa, role').eq('id', user.id).single();
+              setIsPremium(p?.assinatura_ativa || p?.role === 'admin');
+            } else {
+              setIsPremium(false);
+            }
+          }
+          if (isPremium === false) {
+            navigate('/planos');
+            return;
+          }
+          setShowGerar(true);
+        }} className="bg-orange-500 text-black p-2.5 rounded-full shadow-[0_4px_12px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-all">
           <Plus className="w-5 h-5" />
         </button>
       </div>

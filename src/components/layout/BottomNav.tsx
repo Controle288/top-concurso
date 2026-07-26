@@ -1,9 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, BookOpen, Play, HelpCircle, Calendar,
-  MessageSquare, Brain, ChevronLeft, ChevronRight, Sparkles, LogOut, User
+  MessageSquare, Brain, ChevronLeft, ChevronRight, Sparkles, LogOut, User, Crown
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import type { Profile } from '@/types';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Início' },
@@ -15,7 +16,7 @@ const navItems = [
   { to: '/forum', icon: MessageSquare, label: 'Fórum' },
 ];
 
-export default function BottomNav({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void }) {
+export default function BottomNav({ sidebarOpen, setSidebarOpen, profile }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void; profile?: Profile | null }) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -26,7 +27,7 @@ export default function BottomNav({ sidebarOpen, setSidebarOpen }: { sidebarOpen
   return (
     <>
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800/50 max-w-5xl mx-auto">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800/50">
         <div className="flex items-center justify-around py-2 px-2 overflow-x-auto scrollbar-none gap-1">
           {navItems.map((item) => (
             <NavLink
@@ -48,6 +49,15 @@ export default function BottomNav({ sidebarOpen, setSidebarOpen }: { sidebarOpen
               )}
             </NavLink>
           ))}
+          <NavLink
+            to="/planos"
+            className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all shrink-0 ${
+              profile?.assinatura_ativa ? 'text-orange-500' : 'text-zinc-600 hover:text-orange-400'
+            }`}
+          >
+            <Crown className="w-5 h-5" />
+            <span className="text-[10px] font-bold tracking-wider">{profile?.assinatura_ativa ? 'Premium' : 'Premium'}</span>
+          </NavLink>
         </div>
       </nav>
 
@@ -104,6 +114,28 @@ export default function BottomNav({ sidebarOpen, setSidebarOpen }: { sidebarOpen
             </NavLink>
           ))}
         </nav>
+
+        {/* Premium Banner */}
+        <div className="border-t border-zinc-800/50 py-3 px-3">
+          {profile?.assinatura_ativa ? (
+            <NavLink to="/planos"
+              className="flex items-center gap-3 bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-2.5 text-orange-400 hover:bg-orange-500/15 transition-all">
+              <Crown className="w-5 h-5 shrink-0" />
+              {sidebarOpen && <span className="text-sm font-bold">Premium</span>}
+            </NavLink>
+          ) : (
+            <NavLink to="/planos"
+              className="flex items-center gap-3 bg-gradient-to-r from-orange-500/20 to-orange-500/5 border border-orange-500/30 rounded-xl px-3 py-2.5 text-orange-400 hover:from-orange-500/30 hover:to-orange-500/10 transition-all group">
+              <Crown className="w-5 h-5 shrink-0" />
+              {sidebarOpen && (
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-bold block">Premium</span>
+                  <span className="text-[10px] text-orange-500/70 font-medium">Ativar</span>
+                </div>
+              )}
+            </NavLink>
+          )}
+        </div>
 
         {/* Bottom */}
         <div className="border-t border-zinc-800/50 py-3 space-y-1">
