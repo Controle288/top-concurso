@@ -13,6 +13,9 @@ const Dashboard = lazy(() => import('./components/dashboard/Dashboard'))
 const PdfLibrary = lazy(() => import('./components/pdfs/PdfLibrary'))
 const VideoLibrary = lazy(() => import('./components/videos/VideoLibrary'))
 const Questions = lazy(() => import('./components/questoes/Questions'))
+const Cursos = lazy(() => import('./components/cursos/Cursos'))
+const CursoDetalhe = lazy(() => import('./components/cursos/CursoDetalhe'))
+const CursoPlayer = lazy(() => import('./components/cursos/CursoPlayer'))
 const Resumos = lazy(() => import('./components/resumos/Resumos'))
 const CronogramaView = lazy(() => import('./components/cronograma/CronogramaView'))
 const Forum = lazy(() => import('./components/forum/Forum'))
@@ -28,6 +31,7 @@ const AdminAulas = lazy(() => import('./pages/admin/AdminAulas'))
 const AdminPDFs = lazy(() => import('./pages/admin/AdminPDFs'))
 const AdminForum = lazy(() => import('./pages/admin/AdminForum'))
 const AdminTickets = lazy(() => import('./pages/admin/AdminTicketsAdmin'))
+const AdminCursos = lazy(() => import('./pages/admin/AdminCursos'))
 
 const fallback = (
   <div className="flex items-center justify-center py-20">
@@ -77,6 +81,9 @@ function AppContent() {
             <Route path="/" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
             <Route path="/pdfs" element={<ErrorBoundary><PdfLibrary /></ErrorBoundary>} />
             <Route path="/videos" element={<ErrorBoundary><VideoLibrary /></ErrorBoundary>} />
+            <Route path="/cursos" element={<ErrorBoundary><Cursos /></ErrorBoundary>} />
+            <Route path="/cursos/:id" element={<ErrorBoundary><CursoDetalhe /></ErrorBoundary>} />
+            <Route path="/cursos/:id/:aulaId" element={<ErrorBoundary><CursoPlayer /></ErrorBoundary>} />
             <Route path="/questoes" element={<ErrorBoundary><Questions /></ErrorBoundary>} />
             <Route path="/resumos" element={<ErrorBoundary><Resumos /></ErrorBoundary>} />
             <Route path="/cronograma" element={<ErrorBoundary><CronogramaView /></ErrorBoundary>} />
@@ -93,6 +100,7 @@ function AppContent() {
             {isAdmin && <Route path="/admin/pdfs" element={<ErrorBoundary><AdminPDFs /></ErrorBoundary>} />}
             {isAdmin && <Route path="/admin/forum" element={<ErrorBoundary><AdminForum /></ErrorBoundary>} />}
             {isAdmin && <Route path="/admin/tickets" element={<ErrorBoundary><AdminTickets /></ErrorBoundary>} />}
+            {isAdmin && <Route path="/admin/cursos" element={<ErrorBoundary><AdminCursos /></ErrorBoundary>} />}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, Play, HelpCircle, Calendar,
-  MessageSquare, Brain, ChevronLeft, ChevronRight, Sparkles, LogOut, Crown
+  MessageSquare, Brain, ChevronLeft, ChevronRight, Sparkles, LogOut, Crown, GraduationCap
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Início' },
   { to: '/pdfs', icon: BookOpen, label: 'PDFs' },
   { to: '/videos', icon: Play, label: 'Vídeos' },
+  { to: '/cursos', icon: GraduationCap, label: 'Cursos' },
   { to: '/questoes', icon: HelpCircle, label: 'Questões' },
   { to: '/revisao', icon: Brain, label: 'Flashcards' },
   { to: '/cronograma', icon: Calendar, label: 'Cronograma' },

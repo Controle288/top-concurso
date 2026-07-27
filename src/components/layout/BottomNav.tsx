@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, Play, HelpCircle, Calendar,
-  MessageSquare, Brain, Crown
+  MessageSquare, Brain, Crown, GraduationCap
 } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 

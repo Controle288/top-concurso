@@ -204,6 +204,59 @@ export interface StudySession {
   created_at: string;
 }
 
+export interface Curso {
+  id: string;
+  titulo: string;
+  descricao?: string;
+  categoria: 'idiomas' | 'musica' | 'artesanato' | 'informatica' | 'negocios' | 'saude' | 'outros';
+  nivel?: 'iniciante' | 'intermediario' | 'avancado';
+  instrutor: string;
+  carga_horaria_minutos: number;
+  preco: number;
+  thumbnail_url?: string;
+  video_apresentacao?: string;
+  ativo: boolean;
+  created_at: string;
+}
+
+export interface CursoModulo {
+  id: string;
+  curso_id: string;
+  titulo: string;
+  descricao?: string;
+  ordem: number;
+  created_at: string;
+  aulas?: CursoAula[];
+}
+
+export interface CursoAula {
+  id: string;
+  modulo_id: string;
+  titulo: string;
+  descricao?: string;
+  video_url?: string;
+  duracao_minutos: number;
+  ordem: number;
+  created_at: string;
+}
+
+export interface CursoMatricula {
+  id: string;
+  user_id: string;
+  curso_id: string;
+  data_matricula: string;
+  concluido: boolean;
+  created_at: string;
+}
+
+export interface CursoProgresso {
+  id: string;
+  user_id: string;
+  aula_id: string;
+  concluido: boolean;
+  created_at: string;
+}
+
 export interface Assinatura {
   id: string;
   user_id: string;

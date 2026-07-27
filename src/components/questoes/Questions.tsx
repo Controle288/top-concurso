@@ -2,10 +2,18 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import type { Questao } from '@/types'
-import { Check, X, ChevronRight, Award, RotateCcw, AlertCircle, Sparkles, Trophy, Timer, Play, Crown } from 'lucide-react'
+import { Check, X, ChevronRight, Award, RotateCcw, AlertCircle, Sparkles, Trophy, Timer, Play, Crown, Search, SlidersHorizontal, GraduationCap } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
 import QuestionComments from '@/components/shared/QuestionComments'
 import SectionHeader from '../shared/SectionHeader'
+
+const NIVEL_OPTIONS = [
+  { value: '', label: 'Todos Níveis' },
+  { value: 'fundamental', label: 'Fundamental' },
+  { value: 'medio', label: 'Médio' },
+  { value: 'tecnico', label: 'Técnico' },
+  { value: 'superior', label: 'Superior' },
+]
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60)
@@ -58,7 +66,7 @@ export default function Questions() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const [questions, setQuestions] = useState<Questao[]>([])
-  const [bancas, setBancas] = useState<{ id: string; nome: string }[]>([])
+  const [bancas, setBancas] = useState<{ id: string; nome: string; sigla: string }[]>([])
   const [disciplinas, setDisciplinas] = useState<{ id: string; nome: string }[]>([])
   const [concursos, setConcursos] = useState<{ id: string; titulo: string }[]>([])
   const [anos, setAnos] = useState<number[]>([])
@@ -72,6 +80,8 @@ export default function Questions() {
   const [filterAno, setFilterAno] = useState('')
   const [filterDisciplina, setFilterDisciplina] = useState('')
   const [filterConcurso, setFilterConcurso] = useState('')
+  const [filterNivel, setFilterNivel] = useState('')
+  const [filterSearch, setFilterSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [modoProva, setModoProva] = useState(false)
@@ -90,7 +100,7 @@ export default function Questions() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('bancas').select('id, nome'),
+      supabase.from('bancas').select('id, nome, sigla'),
       supabase.from('disciplinas').select('id, nome'),
       supabase.from('concursos').select('id, titulo'),
       supabase.from('questoes').select('ano').not('ano', 'is', null).order('ano', { ascending: false }),
@@ -119,7 +129,7 @@ export default function Questions() {
     setProvaAtiva(false)
     setTempoRestante(0)
     loadQuestions(0, true)
-  }, [filterBanca, filterAno, filterDisciplina, filterConcurso])
+  }, [filterBanca, filterAno, filterDisciplina, filterConcurso, filterNivel, filterSearch])
 
   useEffect(() => {
     if (!hasMore || loadingMore || page === 0) return
@@ -162,6 +172,8 @@ export default function Questions() {
     if (filterAno) query = query.eq('ano', parseInt(filterAno))
     if (filterDisciplina) query = query.eq('disciplina_id', filterDisciplina)
     if (filterConcurso) query = query.eq('concurso_id', filterConcurso)
+    if (filterNivel) query = query.eq('nivel', filterNivel)
+    if (filterSearch) query = query.ilike('enunciado', `%${filterSearch}%`)
 
     const { data, count } = await query
 
@@ -314,27 +326,39 @@ export default function Questions() {
     <div className="flex flex-col gap-4 py-4">
       <SectionHeader icon={Award} title="Simulados" subtitle="Pratique com questões de concursos" />
 
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <select value={filterBanca} onChange={(e) => setFilterBanca(e.target.value)}
-          className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap">
-          <option value="">Todas Bancas</option>
-          {bancas.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
-        </select>
-        <select value={filterDisciplina} onChange={(e) => setFilterDisciplina(e.target.value)}
-          className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap">
-          <option value="">Todas Disciplinas</option>
-          {disciplinas.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
-        </select>
-        <select value={filterConcurso} onChange={(e) => setFilterConcurso(e.target.value)}
-          className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap">
-          <option value="">Todos Concursos</option>
-          {concursos.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
-        </select>
-        <select value={filterAno} onChange={(e) => setFilterAno(e.target.value)}
-          className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap">
-          <option value="">Todos Anos</option>
-          {anos.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
+      <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-3 space-y-2.5">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+          <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)}
+            placeholder="Buscar por palavra no enunciado..."
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none flex-wrap">
+          <select value={filterConcurso} onChange={(e) => setFilterConcurso(e.target.value)}
+            className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-[10px] text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap flex-1 min-w-[120px]">
+            <option value="">Todos Concursos</option>
+            {concursos.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+          </select>
+          <select value={filterDisciplina} onChange={(e) => setFilterDisciplina(e.target.value)}
+            className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-[10px] text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap flex-1 min-w-[100px]">
+            <option value="">Todas Disciplinas</option>
+            {disciplinas.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+          </select>
+          <select value={filterBanca} onChange={(e) => setFilterBanca(e.target.value)}
+            className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-[10px] text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap flex-1 min-w-[90px]">
+            <option value="">Todas Bancas</option>
+            {bancas.map(b => <option key={b.id} value={b.id}>{b.sigla || b.nome}</option>)}
+          </select>
+          <select value={filterAno} onChange={(e) => setFilterAno(e.target.value)}
+            className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-[10px] text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap flex-1 min-w-[70px]">
+            <option value="">Todos Anos</option>
+            {anos.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <select value={filterNivel} onChange={(e) => setFilterNivel(e.target.value)}
+            className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-[10px] text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap flex-1 min-w-[80px]">
+            {NIVEL_OPTIONS.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
+          </select>
+        </div>
       </div>
 
       {!provaAtiva && questions.length > 0 && (

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users, BookOpen, HelpCircle, MessageSquare, Ticket, FileText, Film, LogOut, TrendingUp, Briefcase } from 'lucide-react';
+import { Shield, Users, BookOpen, HelpCircle, MessageSquare, Ticket, FileText, Film, LogOut, TrendingUp, Briefcase, GraduationCap } from 'lucide-react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();

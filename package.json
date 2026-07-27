@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "seed:aulas": "tsx --env-file=.env.local supabase/seed-aulas.ts",
+    "seed:tudo": "tsx --env-file=.env.local supabase/seed-all.ts",
+    "seed:questoes": "tsx --env-file=.env.local supabase/seed-questoes.ts"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.12.0",
