@@ -28,7 +28,6 @@ export default function DesktopSidebar({ sidebarOpen, setSidebarOpen }: DesktopS
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    window.location.reload()
   }
 
   return (

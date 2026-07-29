@@ -162,19 +162,19 @@ export default function Dashboard() {
             </button>
             {showMenu && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                <div className="absolute top-full right-0 mt-2 w-48 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/60 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn" onClick={(e) => e.stopPropagation()}>
-                  <div className="p-3.5 border-b border-zinc-800/50">
+                <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
+                <div className="absolute top-full right-0 mt-2 w-48 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+                  <div className="p-3.5 border-b border-zinc-700/50">
                     <p className="text-sm font-bold text-zinc-100 truncate">{profile?.nome || 'Usuário'}</p>
-                    <p className="text-[11px] text-zinc-600 font-medium mt-0.5">{profile?.role === 'admin' ? 'Administrador' : 'Aluno'}</p>
+                    <p className="text-[11px] text-zinc-500 font-medium mt-0.5">{profile?.role === 'admin' ? 'Administrador' : 'Aluno'}</p>
                   </div>
                   <div className="p-1.5">
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/perfil'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><User className="w-4 h-4" /> Perfil</button>
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/tickets'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><HelpCircle className="w-4 h-4" /> Suporte</button>
+                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/perfil'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><User className="w-4 h-4" /> Perfil</button>
+                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/tickets'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><HelpCircle className="w-4 h-4" /> Suporte</button>
                     {profile?.role === 'admin' && (
-                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/admin'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><Zap className="w-4 h-4 text-orange-500" /> Painel Admin</button>
+                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/admin'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><Zap className="w-4 h-4 text-orange-500" /> Painel Admin</button>
                     )}
-                    <hr className="border-zinc-800/50 my-1" />
+                    <hr className="border-zinc-700/50 my-1" />
                     <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 rounded-xl transition-all"><LogOut className="w-4 h-4" /> Sair</button>
                   </div>
                 </div>
