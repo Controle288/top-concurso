@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Sparkles, Flame, Check, Clock, BookOpen, HelpCircle,
-  LogOut, User, Brain, Film, BarChart3, Bell, BellOff, Zap, Target, ChevronRight, ChevronDown, ChevronUp
+  LogOut, User, Brain, Film, BarChart3, Bell, BellOff, Zap, Target, ChevronRight, ChevronDown, ChevronUp, Play
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
@@ -11,10 +11,32 @@ import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '@/lib/no
 import { useTarefasDiarias, useToggleTarefa } from '@/lib/queries/useTarefasDiarias'
 import { useQuestStats } from '@/lib/queries/useQuestaoRespostas'
 import { useDashboardData } from '@/lib/queries/useDashboard'
+import { useEstudoDiario } from '@/lib/queries/useEstudoDiario'
 import NewsMural from './NewsMural'
 import ConcursosAbertos from './ConcursosAbertos'
 import GradePreview from './GradePreview'
+import QuickActions from './QuickActions'
+import CronogramaHoje from './CronogramaHoje'
+import RevisoesPendentes from './RevisoesPendentes'
 import PullToRefresh from '@/components/shared/PullToRefresh'
+
+function RadialProgress({ pct, size = 48, stroke = 4, color }: { pct: number; size?: number; stroke?: number; color: string }) {
+  const r = (size - stroke) / 2
+  const circ = 2 * Math.PI * r
+  const offset = circ - (pct / 100) * circ
+  return (
+    <svg width={size} height={size} className="shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(39 39 42)" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`} className="transition-all duration-700" />
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central"
+        fill="white" fontSize={size * 0.28} fontWeight="900" fontFamily="monospace">
+        {Math.round(pct)}%
+      </text>
+    </svg>
+  )
+}
 
 const TaskItem = memo(function TaskItem({
   task,
@@ -124,10 +146,14 @@ export default function Dashboard() {
   const { data: tasks = [], isLoading: tasksLoading } = useTarefasDiarias(userId)
   const { data: questStats = { total: 0, correct: 0, rate: 0 } } = useQuestStats(userId)
   const { data: dashboardData, refetch: refetchDashboard } = useDashboardData(userId)
+  const { data: estudo = { minutosHoje: 0, streak: 0 } } = useEstudoDiario(userId)
   const toggleTarefa = useToggleTarefa()
 
   const aulasConcluidas = dashboardData?.aulasConcluidas ?? 0
   const concursoProgress = dashboardData?.concursoProgress ?? []
+
+  const metaMinutos = 180
+  const pctEstudo = Math.min(Math.round((estudo.minutosHoje / metaMinutos) * 100), 100)
 
   useEffect(() => {
     setNotifPermission(Notification.permission)
@@ -219,7 +245,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 relative">
             <div className="flex items-center gap-1.5 bg-zinc-900/60 border border-orange-500/15 rounded-xl px-3 py-1.5">
               <Flame className="w-4 h-4 text-orange-500 fill-orange-500/30" />
-              <span className="text-xs font-bold text-orange-500">7 DIAS</span>
+              <span className="text-xs font-bold text-orange-500">{estudo.streak} DIAS</span>
             </div>
             <button ref={avatarRef} onClick={() => setShowMenu(!showMenu)} className="w-8 h-8 bg-zinc-900/80 rounded-xl border border-zinc-800/60 flex items-center justify-center text-zinc-500 hover:text-orange-500 hover:border-orange-500/30 transition-all">
               <User className="w-4 h-4" />
@@ -235,81 +261,79 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Quick Actions */}
+        <QuickActions />
+
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-slideUp">
-          <div className="card-glass p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-orange-500 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5">
-                <Target className="w-3.5 h-3.5" /> Foco Hoje
-              </span>
-              <h3 className="text-sm font-semibold text-zinc-100">Meta: 3h líquidas</h3>
-              <p className="text-xs text-zinc-500">{completedTasks} de {totalTasks} tarefas</p>
-            </div>
-            <div className="text-right">
-              <span className="text-3xl font-black text-orange-500 font-mono">{completionPct}%</span>
+        <div className="grid grid-cols-2 gap-3 animate-slideUp">
+          <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-4">
+            <RadialProgress pct={pctEstudo} color={estudo.minutosHoje >= metaMinutos ? '#22c55e' : '#f97316'} />
+            <div>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Foco Hoje</p>
+              <p className="text-lg font-black text-white font-mono">{estudo.minutosHoje}<span className="text-xs text-zinc-500 font-bold">/{metaMinutos}min</span></p>
+              <p className="text-[10px] text-zinc-600 mt-0.5">{completedTasks} de {totalTasks} tarefas</p>
             </div>
           </div>
 
           {aulasConcluidas > 0 && (
-            <div className="card-glass p-5 flex items-center gap-4">
-              <div className="w-11 h-11 bg-emerald-500/10 rounded-xl flex items-center justify-center shrink-0">
-                <Film className="w-5 h-5 text-emerald-400" />
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center shrink-0">
+                <Film className="w-6 h-6 text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">{aulasConcluidas} aula{aulasConcluidas !== 1 ? 's' : ''} concluída{aulasConcluidas !== 1 ? 's' : ''}</p>
-                <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">VIDEOAULAS</p>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Vídeos</p>
+                <p className="text-lg font-black text-white font-mono">{aulasConcluidas}</p>
+                <p className="text-[10px] text-zinc-600">aulas concluídas</p>
               </div>
+            </div>
+          )}
+
+          {questStats.total > 0 && (
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-4 col-span-2">
+              <RadialProgress pct={questStats.rate} color={questStats.rate >= 70 ? '#22c55e' : '#f97316'} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Desempenho</p>
+                <p className="text-sm font-bold text-white">{questStats.correct} acertos de {questStats.total} questões</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs font-bold text-emerald-400">{questStats.correct}</span>
+                  <span className="text-xs text-zinc-600">|</span>
+                  <span className="text-xs font-bold text-red-400">{questStats.total - questStats.correct}</span>
+                  <span className="text-xs text-zinc-600">erros</span>
+                </div>
+              </div>
+              <button onClick={() => navigate('/questoes')}
+                className="bg-orange-500 text-black p-2.5 rounded-xl hover:bg-orange-600 transition-all shrink-0">
+                <HelpCircle className="w-5 h-5" />
+              </button>
             </div>
           )}
 
           {pushSubscribed ? (
             <button onClick={desativarNotificacao} disabled={pushLoading}
-              className="card-glass p-5 flex items-center gap-3 hover:border-zinc-700/60 text-left cursor-pointer disabled:opacity-50">
+              className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-3 hover:border-zinc-700/60 text-left cursor-pointer disabled:opacity-50">
               <BellOff className="w-5 h-5 text-zinc-500 shrink-0" />
               <div>
                 <p className="text-sm font-bold text-zinc-200">Notificações Ativas</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">Clique para desativar</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">Clique para desativar</p>
               </div>
             </button>
           ) : notifPermission !== 'granted' && (
             <button onClick={solicitarNotificacao} disabled={pushLoading}
-              className="card-glass p-5 flex items-center gap-3 hover:border-zinc-700/60 text-left cursor-pointer disabled:opacity-50">
+              className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 flex items-center gap-3 hover:border-zinc-700/60 text-left cursor-pointer disabled:opacity-50">
               <Bell className="w-5 h-5 text-orange-500 shrink-0" />
               <div>
                 <p className="text-sm font-bold text-zinc-200">{pushLoading ? 'Ativando...' : 'Ativar Notificações'}</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">Receba lembretes de estudos</p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">Receba lembretes de estudos</p>
               </div>
             </button>
           )}
-
-          {questStats.total > 0 && (
-            <div className="card-glass p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-orange-500" />
-                  Desempenho
-                </h3>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${
-                  questStats.rate >= 70 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-orange-500/10 text-orange-400'
-                }`}>{questStats.rate}%</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-zinc-900/50 rounded-xl p-3 text-center">
-                  <span className="text-xl font-black text-white font-mono">{questStats.total}</span>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">Questões</p>
-                </div>
-                <div className="bg-zinc-900/50 rounded-xl p-3 text-center">
-                  <span className="text-xl font-black text-emerald-400 font-mono">{questStats.correct}</span>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">Acertos</p>
-                </div>
-                <div className="bg-zinc-900/50 rounded-xl p-3 text-center">
-                  <span className="text-xl font-black text-red-400 font-mono">{questStats.total - questStats.correct}</span>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">Erros</p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Cronograma Hoje */}
+        <CronogramaHoje userId={userId} />
+
+        {/* Revisões Pendentes */}
+        <RevisoesPendentes userId={userId} />
 
         {/* Grade Curricular */}
         {concursoProgress.length > 0 && (
@@ -332,7 +356,7 @@ export default function Dashboard() {
         )}
 
         {/* Tarefas do Dia */}
-        <div className="card-glass p-5 animate-slideUp">
+        <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 animate-slideUp">
           <div className="flex items-center justify-between cursor-pointer select-none" onClick={() => setTasksExpanded(!tasksExpanded)}>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Check className="w-4 h-4 text-orange-500" />
