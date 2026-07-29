@@ -8,7 +8,7 @@ import EmptyState from '../shared/EmptyState';
 import SearchBar from '../shared/SearchBar';
 
 function getEmbedUrl(youtubeId: string) {
-  return `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1`;
+  return `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&cc_load_policy=0&fs=1`;
 }
 
 export default function VideoLibrary() {

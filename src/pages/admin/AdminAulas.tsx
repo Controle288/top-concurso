@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Film, Search, Download, Youtube, CheckSquare, Square, List } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Film, Search, Download, Youtube, CheckSquare, Square, Image } from 'lucide-react';
 import { searchYouTubeVideos, searchYouTubePlaylists, getPlaylistVideos, searchChannelVideos, extractYoutubeId } from '@/lib/youtube';
 import type { Aula, Concurso, Disciplina } from '@/types';
+
+const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
+
+function getThumbnailUrl(youtubeId: string): string {
+  return `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
+}
 
 interface ImportVideo {
   id: string
@@ -61,12 +67,28 @@ export default function AdminAulas() {
     }
   }, [form.concurso_id]);
 
-  const resetForm = () => { setForm({ titulo: '', descricao: '', concurso_id: '', disciplina_id: '', youtube_url: '', duracao_minutos: 0, instrutor: '', thumbnail_url: '' }); setEditing(null); setShowForm(false); };
+  const autoPreencherThumbnail = useCallback((url: string) => {
+    const id = extractYoutubeId(url);
+    if (id && !form.thumbnail_url) {
+      setForm(prev => ({ ...prev, thumbnail_url: getThumbnailUrl(id) }));
+    }
+  }, []);
+
+  const resetForm = () => {
+    setForm({ titulo: '', descricao: '', concurso_id: '', disciplina_id: '', youtube_url: '', duracao_minutos: 0, instrutor: '', thumbnail_url: '' });
+    setEditing(null);
+    setShowForm(false);
+  };
 
   const handleSave = async () => {
     if (!form.titulo || !form.youtube_url) return;
     const youtubeId = extractYoutubeId(form.youtube_url) || '';
-    const payload = { ...form, youtube_id: youtubeId, disciplina_id: form.disciplina_id || null };
+    const payload = {
+      ...form,
+      youtube_id: youtubeId,
+      thumbnail_url: form.thumbnail_url || (youtubeId ? getThumbnailUrl(youtubeId) : ''),
+      disciplina_id: form.disciplina_id || null,
+    };
     if (editing) {
       const { error } = await supabase.from('aulas').update(payload).eq('id', editing);
       if (error) return;
@@ -79,7 +101,11 @@ export default function AdminAulas() {
   };
 
   const handleEdit = (a: Aula) => {
-    setForm({ titulo: a.titulo, descricao: a.descricao || '', concurso_id: a.concurso_id || '', disciplina_id: a.disciplina_id || '', youtube_url: a.youtube_url, duracao_minutos: a.duracao_minutos, instrutor: a.instrutor || '', thumbnail_url: a.thumbnail_url || '' });
+    setForm({
+      titulo: a.titulo, descricao: a.descricao || '', concurso_id: a.concurso_id || '',
+      disciplina_id: a.disciplina_id || '', youtube_url: a.youtube_url,
+      duracao_minutos: a.duracao_minutos, instrutor: a.instrutor || '', thumbnail_url: a.thumbnail_url || '',
+    });
     setEditing(a.id);
     setShowForm(true);
   };
@@ -134,7 +160,7 @@ export default function AdminAulas() {
       youtube_id: video.id,
       duracao_minutos: minutos || 0,
       instrutor: video.channelTitle,
-      thumbnail_url: video.thumbnailUrl,
+      thumbnail_url: video.thumbnailUrl || getThumbnailUrl(video.id),
     });
     return !error
   };
@@ -185,13 +211,80 @@ export default function AdminAulas() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { setShowImport(true); setShowForm(false); setImportTab('videos'); setImportResults([]); setImportQuery(''); }}
-            className="bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-orange-500 p-2.5 rounded-full transition-all"><Youtube className="w-5 h-5" /></button>
+          {YOUTUBE_API_KEY && (
+            <button onClick={() => { setShowImport(true); setShowForm(false); setImportTab('videos'); setImportResults([]); setImportQuery(''); }}
+              className="bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-orange-500 p-2.5 rounded-full transition-all"><Youtube className="w-5 h-5" /></button>
+          )}
           <button onClick={() => { resetForm(); setShowForm(true); setShowImport(false); }} className="bg-orange-500 text-black p-2.5 rounded-full shadow-md hover:bg-orange-600 transition-all"><Plus className="w-5 h-5" /></button>
         </div>
       </div>
 
-      {showImport && (
+      {/* Formulário manual */}
+      {showForm && (
+        <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <Plus className="w-4 h-4 text-orange-500" /> {editing ? 'Editar Aula' : 'Nova Aula'}
+          </h3>
+          <input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+            placeholder="Título da aula *" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
+          <input value={form.youtube_url} onChange={(e) => { setForm({ ...form, youtube_url: e.target.value }); autoPreencherThumbnail(e.target.value); }}
+            placeholder="URL do YouTube * (ex: https://youtube.com/watch?v=...)"
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
+          <div className="grid grid-cols-2 gap-3">
+            <select value={form.concurso_id} onChange={(e) => setForm({ ...form, concurso_id: e.target.value })}
+              className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50">
+              <option value="">Sem concurso</option>
+              {concursos.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+            </select>
+            <select value={form.disciplina_id} onChange={(e) => setForm({ ...form, disciplina_id: e.target.value })}
+              className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50">
+              <option value="">Sem disciplina</option>
+              {disciplinas.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+            </select>
+            <input type="number" value={form.duracao_minutos} onChange={(e) => setForm({ ...form, duracao_minutos: Number(e.target.value) })}
+              placeholder="Duração (min)" className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
+            <input value={form.instrutor} onChange={(e) => setForm({ ...form, instrutor: e.target.value })}
+              placeholder="Instrutor" className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
+          </div>
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <input value={form.thumbnail_url} onChange={(e) => setForm({ ...form, thumbnail_url: e.target.value })}
+                placeholder="URL da thumbnail (auto se vazio)"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600 pl-9" />
+              <Image className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+            {form.thumbnail_url && (
+              <div className="w-16 h-12 rounded-xl overflow-hidden shrink-0 bg-zinc-950 border border-zinc-800">
+                <img src={form.thumbnail_url} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              </div>
+            )}
+          </div>
+          <textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+            placeholder="Descrição..." rows={2} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600 resize-none" />
+          {form.youtube_url && extractYoutubeId(form.youtube_url) && (
+            <div className="bg-zinc-950/50 rounded-xl p-3 flex items-center gap-3 border border-zinc-800/50">
+              <img src={getThumbnailUrl(extractYoutubeId(form.youtube_url)!)}
+                alt="" className="w-20 h-14 object-cover rounded-lg"
+                onError={(e) => { (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${extractYoutubeId(form.youtube_url)!}/hqdefault.jpg` }} />
+              <div className="text-xs text-zinc-500">
+                <span className="text-zinc-400 font-semibold">Preview do vídeo</span>
+                <p className="mt-0.5">ID: {extractYoutubeId(form.youtube_url)}</p>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 pt-1">
+            <button onClick={handleSave} disabled={!form.titulo || !form.youtube_url}
+              className="flex-1 bg-orange-500 text-black font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 disabled:bg-zinc-800 disabled:text-zinc-500 transition-all">
+              <Save className="w-4 h-4" /> {editing ? 'Atualizar' : 'Adicionar Aula'}
+            </button>
+            <button onClick={resetForm}
+              className="px-4 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center text-zinc-400 hover:text-white"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+      )}
+
+      {/* Import do YouTube (só aparece se API key configurada) */}
+      {YOUTUBE_API_KEY && showImport && (
         <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-white flex items-center gap-2"><Youtube className="w-4 h-4 text-red-500" /> Importar do YouTube</h3>
@@ -226,7 +319,7 @@ export default function AdminAulas() {
           <div className="flex gap-2">
             <input value={importQuery} onChange={(e) => setImportQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder={importTab === 'videos' ? 'Ex: Direito Constitucional PM BA...' : importTab === 'playlist' ? 'Ex: Curso Completo de Português...' : 'ID do canal (ex: UCX6b17PVsYBQ0ip5gyeme-Q)'}
+              placeholder={importTab === 'videos' ? 'Ex: Direito Constitucional...' : importTab === 'playlist' ? 'Nome da playlist...' : 'ID do canal...'}
               className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
             <button onClick={handleSearch} disabled={importLoading || !importQuery || !importConcurso}
               className="bg-orange-500 text-black px-4 rounded-xl hover:bg-orange-600 disabled:bg-zinc-800 disabled:text-zinc-600 transition-all"><Search className="w-5 h-5" /></button>
@@ -281,41 +374,22 @@ export default function AdminAulas() {
         </div>
       )}
 
-      {showForm && (
-        <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3">
-          <input value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} placeholder="Título da aula" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
-          <input value={form.youtube_url} onChange={(e) => setForm({ ...form, youtube_url: e.target.value })} placeholder="URL do YouTube" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
-          <div className="grid grid-cols-2 gap-3">
-            <select value={form.concurso_id} onChange={(e) => setForm({ ...form, concurso_id: e.target.value })} className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50">
-              <option value="">Sem concurso</option>
-              {concursos.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
-            </select>
-            <select value={form.disciplina_id} onChange={(e) => setForm({ ...form, disciplina_id: e.target.value })} className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50">
-              <option value="">Sem disciplina</option>
-              {disciplinas.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
-            </select>
-            <input type="number" value={form.duracao_minutos} onChange={(e) => setForm({ ...form, duracao_minutos: Number(e.target.value) })} placeholder="Duração (min)" className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
-            <input value={form.instrutor} onChange={(e) => setForm({ ...form, instrutor: e.target.value })} placeholder="Instrutor" className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
-            <input value={form.thumbnail_url} onChange={(e) => setForm({ ...form, thumbnail_url: e.target.value })} placeholder="URL da thumbnail" className="col-span-2 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
-          </div>
-          <textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Descrição..." rows={2} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600 resize-none" />
-          <div className="flex gap-3 pt-1">
-            <button onClick={handleSave} className="flex-1 bg-orange-500 text-black font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 transition-all"><Save className="w-4 h-4" /> {editing ? 'Atualizar' : 'Criar'}</button>
-            <button onClick={resetForm} className="px-4 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center text-zinc-400 hover:text-white"><X className="w-4 h-4" /></button>
-          </div>
-        </div>
-      )}
-
       {loading ? <p className="text-center text-zinc-500 py-8">Carregando...</p> : aulas.length === 0 ? (
         <p className="text-center text-zinc-500 py-8">Nenhuma aula cadastrada.</p>
       ) : (
         <div className="space-y-2">
           {aulas.map(a => (
             <div key={a.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4">
-              <div className="flex justify-between items-start gap-2">
+              <div className="flex gap-3 items-start">
+                {a.thumbnail_url && (
+                  <img src={a.thumbnail_url} alt="" className="w-20 h-14 object-cover rounded-xl shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                )}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-bold text-zinc-100">{a.titulo}</h3>
-                  <p className="text-[10px] text-zinc-500 mt-0.5">{a.concursos?.titulo || 'Sem concurso'} • {a.duracao_minutos}min • {a.instrutor || 'Sem instrutor'}</p>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">
+                    {a.concursos?.titulo || 'Sem concurso'} • {a.duracao_minutos}min • {a.instrutor || 'Sem instrutor'}
+                  </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <button onClick={() => handleEdit(a)} className="p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-orange-500"><Pencil className="w-3.5 h-3.5" /></button>
