@@ -88,6 +88,13 @@ export default function Dashboard() {
     isPushSubscribed().then(setPushSubscribed)
   }, [])
 
+  useEffect(() => {
+    if (!showMenu) return
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowMenu(false) }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [showMenu])
+
   const handleRefresh = async () => {
     setRefreshing(true)
     await Promise.all([
@@ -150,25 +157,28 @@ export default function Dashboard() {
               <Flame className="w-4 h-4 text-orange-500 fill-orange-500/30" />
               <span className="text-xs font-bold text-orange-500">7 DIAS</span>
             </div>
-            <button onClick={() => setShowMenu(!showMenu)} className="w-8 h-8 bg-zinc-900/80 rounded-xl border border-zinc-800/60 flex items-center justify-center text-zinc-500 hover:text-orange-500 hover:border-orange-500/30 transition-all">
+            <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="w-8 h-8 bg-zinc-900/80 rounded-xl border border-zinc-800/60 flex items-center justify-center text-zinc-500 hover:text-orange-500 hover:border-orange-500/30 transition-all">
               <User className="w-4 h-4" />
             </button>
             {showMenu && (
-              <div className="absolute top-full right-0 mt-2 w-48 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/60 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
-                <div className="p-3.5 border-b border-zinc-800/50">
-                  <p className="text-sm font-bold text-zinc-100 truncate">{profile?.nome || 'Usuário'}</p>
-                  <p className="text-[11px] text-zinc-600 font-medium mt-0.5">{profile?.role === 'admin' ? 'Administrador' : 'Aluno'}</p>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                <div className="absolute top-full right-0 mt-2 w-48 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/60 rounded-2xl shadow-2xl z-50 overflow-hidden animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+                  <div className="p-3.5 border-b border-zinc-800/50">
+                    <p className="text-sm font-bold text-zinc-100 truncate">{profile?.nome || 'Usuário'}</p>
+                    <p className="text-[11px] text-zinc-600 font-medium mt-0.5">{profile?.role === 'admin' ? 'Administrador' : 'Aluno'}</p>
+                  </div>
+                  <div className="p-1.5">
+                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/perfil'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><User className="w-4 h-4" /> Perfil</button>
+                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/tickets'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><HelpCircle className="w-4 h-4" /> Suporte</button>
+                    {profile?.role === 'admin' && (
+                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/admin'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><Zap className="w-4 h-4 text-orange-500" /> Painel Admin</button>
+                    )}
+                    <hr className="border-zinc-800/50 my-1" />
+                    <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 rounded-xl transition-all"><LogOut className="w-4 h-4" /> Sair</button>
+                  </div>
                 </div>
-                <div className="p-1.5">
-                  <button onClick={() => { setShowMenu(false); navigate('/perfil'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><User className="w-4 h-4" /> Perfil</button>
-                  <button onClick={() => { setShowMenu(false); navigate('/tickets'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><HelpCircle className="w-4 h-4" /> Suporte</button>
-                  {profile?.role === 'admin' && (
-                    <button onClick={() => { setShowMenu(false); navigate('/admin'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-xl transition-all"><Zap className="w-4 h-4 text-orange-500" /> Painel Admin</button>
-                  )}
-                  <hr className="border-zinc-800/50 my-1" />
-                  <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 rounded-xl transition-all"><LogOut className="w-4 h-4" /> Sair</button>
-                </div>
-              </div>
+              </>
             )}
           </div>
         </div>
