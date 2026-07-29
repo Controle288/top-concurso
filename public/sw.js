@@ -13,17 +13,17 @@ const BRAZILIAN_HOLIDAYS = [
   '12-25', // Natal
 ]
 
-function isHoliday(dateStr: string): boolean {
+function isHoliday(dateStr) {
   const mmdd = dateStr.slice(5)
   return BRAZILIAN_HOLIDAYS.includes(mmdd)
 }
 
-function isWeekend(dateStr: string): boolean {
+function isWeekend(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.getDay() === 0 || d.getDay() === 6
 }
 
-function isBusinessDay(dateStr: string): boolean {
+function isBusinessDay(dateStr) {
   return !isWeekend(dateStr) && !isHoliday(dateStr)
 }
 

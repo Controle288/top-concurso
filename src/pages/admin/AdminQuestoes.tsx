@@ -77,7 +77,7 @@ export default function AdminQuestoes() {
       {showForm && (
         <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3 max-h-[70vh] overflow-y-auto">
           <textarea value={form.enunciado} onChange={(e) => setForm({ ...form, enunciado: e.target.value })} placeholder="Enunciado da questão..." rows={3} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600 resize-none" />
-          {form.alternativas.map((alt, idx) => (
+          {(Array.isArray(form.alternativas) ? form.alternativas : []).map((alt, idx) => (
             <div key={alt.key} className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400 shrink-0">{alt.key}</span>
               <input value={alt.text} onChange={(e) => updateAlt(idx, e.target.value)} placeholder={`Alternativa ${alt.key}...`} className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />

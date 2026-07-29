@@ -259,7 +259,7 @@ export default function VideoLibrary() {
                 </div>
 
                 <div className="space-y-1.5">
-                  {q.alternativas.map(alt => {
+                  {(Array.isArray(q.alternativas) ? q.alternativas : []).map(alt => {
                     const isSelected = q.selected === alt.key;
                     const isCorrect = q.answered && alt.key === q.correta;
                     const isWrong = q.answered && isSelected && alt.key !== q.correta;

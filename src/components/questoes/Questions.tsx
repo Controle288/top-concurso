@@ -453,7 +453,7 @@ export default function Questions() {
               </div>
 
               <div className="space-y-2.5">
-                {currentQuestion.alternativas.map((alt) => (
+                {(Array.isArray(currentQuestion.alternativas) ? currentQuestion.alternativas : []).map((alt) => (
                   <Alternativa
                     key={alt.key}
                     altKey={alt.key}
