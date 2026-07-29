@@ -129,6 +129,31 @@ export default function AdminAulas() {
     invalidate();
   };
 
+  const sugerirMateria = (query: string) => {
+    if (!importDisciplina) return
+    const materiasDaDisciplina = materias.filter(m => m.disciplina_id === importDisciplina)
+    if (materiasDaDisciplina.length === 0) return
+
+    const queryLower = query.toLowerCase()
+    const palavras = queryLower.split(/\s+/).filter(p => p.length > 3)
+
+    let melhorMatch = { id: '', score: 0 }
+    for (const m of materiasDaDisciplina) {
+      const nomeLower = m.nome.toLowerCase()
+      let score = 0
+      for (const p of palavras) {
+        if (nomeLower.includes(p)) score++
+      }
+      if (score > melhorMatch.score) {
+        melhorMatch = { id: m.id, score }
+      }
+    }
+
+    if (melhorMatch.score > 0) {
+      setImportMateria(melhorMatch.id)
+    }
+  }
+
   const handleSearch = async () => {
     if (!importQuery || !importConcurso) return;
     setImportLoading(true);
@@ -151,6 +176,10 @@ export default function AdminAulas() {
 
     setImportResults(results.map(r => ({ ...r, selected: false })));
     setImportLoading(false);
+
+    if (results.length > 0) {
+      sugerirMateria(importQuery)
+    }
   };
 
   const toggleSelect = (id: string) => {

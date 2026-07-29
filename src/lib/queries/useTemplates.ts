@@ -20,6 +20,79 @@ export function useTemplates() {
   })
 }
 
+export function useCriarTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { nome: string; orgao_pattern: string }) => {
+      const { error } = await supabase.from('concurso_templates').insert(payload)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Template criado!')
+      queryClient.invalidateQueries({ queryKey: ['concurso_templates'] })
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erro ao criar template'),
+  })
+}
+
+export function useAtualizarTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { id: string; nome?: string; orgao_pattern?: string }) => {
+      const { error } = await supabase.from('concurso_templates').update(payload).eq('id', payload.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Template atualizado!')
+      queryClient.invalidateQueries({ queryKey: ['concurso_templates'] })
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erro ao atualizar template'),
+  })
+}
+
+export function useDeletarTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('concurso_templates').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Template excluído')
+      queryClient.invalidateQueries({ queryKey: ['concurso_templates'] })
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erro ao excluir template'),
+  })
+}
+
+export function useCriarTemplateMateria() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { template_id: string; disciplina_nome: string; materia_nome: string; ordem: number }) => {
+      const { error } = await supabase.from('template_materias').insert(payload)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['concurso_templates'] })
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erro ao adicionar matéria'),
+  })
+}
+
+export function useDeletarTemplateMateria() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('template_materias').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['concurso_templates'] })
+    },
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erro ao excluir matéria do template'),
+  })
+}
+
 export function usePopularMaterias() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -1,85 +1,105 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import { useMaterias, useCriarMateria, useAtualizarMateria, useDeletarMateria } from '@/lib/queries/useMaterias';
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, BookOpen, ChevronUp, ChevronDown } from 'lucide-react';
-import type { Concurso, Disciplina } from '@/types';
+import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import { useMaterias, useCriarMateria, useAtualizarMateria, useDeletarMateria } from '@/lib/queries/useMaterias'
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, BookOpen, GripVertical, Eye } from 'lucide-react'
+import type { Concurso, Disciplina, Materia } from '@/types'
+import GradeCurricular from '@/components/concursos/GradeCurricular'
 
 export default function AdminMaterias() {
-  const navigate = useNavigate();
-  const [concursoId, setConcursoId] = useState('');
-  const [disciplinaId, setDisciplinaId] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [nome, setNome] = useState('');
+  const navigate = useNavigate()
+  const [concursoId, setConcursoId] = useState('')
+  const [disciplinaId, setDisciplinaId] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [nome, setNome] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
+  const dragItem = useRef<number | null>(null)
+  const dragOverItem = useRef<number | null>(null)
 
   const { data: concursos = [] } = useQuery<Concurso[]>({
     queryKey: ['concursos'],
     queryFn: async () => {
-      const { data } = await supabase.from('concursos').select('*').order('titulo');
-      return data ?? [];
+      const { data } = await supabase.from('concursos').select('*').order('titulo')
+      return data ?? []
     },
-  });
+  })
 
   const { data: disciplinas = [] } = useQuery<Disciplina[]>({
     queryKey: ['disciplinas_por_concurso', concursoId],
     queryFn: async () => {
-      if (!concursoId) return [];
-      const { data } = await supabase.from('disciplinas').select('*').eq('concurso_id', concursoId);
-      return data ?? [];
+      if (!concursoId) return []
+      const { data } = await supabase.from('disciplinas').select('*').eq('concurso_id', concursoId)
+      return data ?? []
     },
     enabled: !!concursoId,
     staleTime: 0,
     refetchOnMount: true,
-  });
+  })
 
-  const { data: materias = [], isLoading } = useMaterias(concursoId);
-  const criar = useCriarMateria();
-  const atualizar = useAtualizarMateria();
-  const deletar = useDeletarMateria();
+  const { data: materias = [], isLoading } = useMaterias(concursoId)
+  const criar = useCriarMateria()
+  const atualizar = useAtualizarMateria()
+  const deletar = useDeletarMateria()
 
+  const sorted = [...materias].sort((a, b) => a.ordem - b.ordem)
   const filteredMaterias = disciplinas.length > 0
-    ? materias.filter(m => m.disciplina_id === (disciplinaId || m.disciplina_id))
-    : concursoId ? materias : [];
+    ? sorted.filter(m => m.disciplina_id === (disciplinaId || m.disciplina_id))
+    : concursoId ? sorted : []
 
   const resetForm = () => {
-    setNome('');
-    setEditing(null);
-    setShowForm(false);
-  };
+    setNome('')
+    setEditing(null)
+    setShowForm(false)
+  }
 
   const handleSave = () => {
-    if (!nome.trim() || !concursoId || !disciplinaId) return;
+    if (!nome.trim() || !concursoId || !disciplinaId) return
     if (editing) {
-      atualizar.mutate({ id: editing, nome: nome.trim() }, { onSuccess: resetForm });
+      atualizar.mutate({ id: editing, nome: nome.trim() }, { onSuccess: resetForm })
     } else {
-      const maxOrdem = materias.filter(m => m.disciplina_id === disciplinaId).length;
+      const maxOrdem = materias.filter(m => m.disciplina_id === disciplinaId).length
       criar.mutate(
         { concurso_id: concursoId, disciplina_id: disciplinaId, nome: nome.trim(), ordem: maxOrdem + 1 },
         { onSuccess: resetForm }
-      );
+      )
     }
-  };
+  }
 
-  const handleEdit = (m: any) => {
-    setNome(m.nome);
-    setEditing(m.id);
-    setDisciplinaId(m.disciplina_id);
-    setShowForm(true);
-  };
+  const handleEdit = (m: Materia) => {
+    setNome(m.nome)
+    setEditing(m.id)
+    setDisciplinaId(m.disciplina_id)
+    setShowForm(true)
+  }
 
-  const handleReorder = (id: string, direction: 'up' | 'down') => {
-    const sorted = [...filteredMaterias].sort((a, b) => a.ordem - b.ordem);
-    const idx = sorted.findIndex(m => m.id === id);
-    if (idx === -1) return;
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= sorted.length) return;
-    const current = sorted[idx];
-    const target = sorted[targetIdx];
-    atualizar.mutate({ id: current.id, ordem: target.ordem });
-    atualizar.mutate({ id: target.id, ordem: current.ordem });
-  };
+  const handleDragStart = (index: number) => {
+    dragItem.current = index
+  }
+
+  const handleDragEnter = (index: number) => {
+    dragOverItem.current = index
+  }
+
+  const handleDragEnd = () => {
+    if (dragItem.current === null || dragOverItem.current === null) return
+    if (dragItem.current === dragOverItem.current) return
+
+    const newList = [...filteredMaterias]
+    const draggedItem = newList[dragItem.current]
+    newList.splice(dragItem.current, 1)
+    newList.splice(dragOverItem.current, 0, draggedItem)
+
+    newList.forEach((m, i) => {
+      if (m.ordem !== i + 1) {
+        atualizar.mutate({ id: m.id, ordem: i + 1 })
+      }
+    })
+
+    dragItem.current = null
+    dragOverItem.current = null
+  }
 
   return (
     <div className="flex flex-col gap-4 py-4">
@@ -91,10 +111,19 @@ export default function AdminMaterias() {
             <h2 className="text-lg font-black text-white flex items-center gap-2"><BookOpen className="w-5 h-5 text-orange-500" /> Matérias</h2>
           </div>
         </div>
-        <button onClick={() => { resetForm(); setShowForm(true); }} disabled={!concursoId}
-          className="bg-orange-500 text-black p-2.5 rounded-full shadow-md hover:bg-orange-600 disabled:bg-zinc-800 disabled:text-zinc-600 transition-all">
-          <Plus className="w-5 h-5" />
-        </button>
+        <div className="flex gap-2">
+          {concursoId && (
+            <button onClick={() => setShowPreview(true)}
+              className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-orange-500 transition-all"
+              title="Visualizar Grade Curricular">
+              <Eye className="w-5 h-5" />
+            </button>
+          )}
+          <button onClick={() => { resetForm(); setShowForm(true); }} disabled={!concursoId}
+            className="bg-orange-500 text-black p-2.5 rounded-full shadow-md hover:bg-orange-600 disabled:bg-zinc-800 disabled:text-zinc-600 transition-all">
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2">
@@ -141,13 +170,18 @@ export default function AdminMaterias() {
         <p className="text-center text-zinc-500 py-8">Nenhuma matéria cadastrada. Crie a primeira!</p>
       ) : (
         <div className="space-y-2">
-          {filteredMaterias.sort((a, b) => a.ordem - b.ordem).map(m => (
-            <div key={m.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4">
+          {filteredMaterias.map((m, index) => (
+            <div key={m.id}
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragEnter={() => handleDragEnter(index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => e.preventDefault()}
+              className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 cursor-grab active:cursor-grabbing active:border-orange-500/40 active:bg-zinc-900/80 transition-all">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex flex-col gap-0.5">
-                    <button onClick={() => handleReorder(m.id, 'up')} className="text-zinc-600 hover:text-zinc-300"><ChevronUp className="w-3 h-3" /></button>
-                    <button onClick={() => handleReorder(m.id, 'down')} className="text-zinc-600 hover:text-zinc-300"><ChevronDown className="w-3 h-3" /></button>
+                  <div className="text-zinc-600 hover:text-zinc-400 transition-colors cursor-grab">
+                    <GripVertical className="w-4 h-4" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -169,6 +203,20 @@ export default function AdminMaterias() {
           ))}
         </div>
       )}
+
+      {showPreview && concursoId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setShowPreview(false)}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+              <h3 className="text-sm font-bold text-white">Grade Curricular</h3>
+              <button onClick={() => setShowPreview(false)} className="p-1.5 bg-zinc-800 rounded-lg text-zinc-400 hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4">
+              <GradeCurricular concursoId={concursoId} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  )
 }

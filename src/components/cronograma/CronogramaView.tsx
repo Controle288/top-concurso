@@ -157,6 +157,19 @@ export default function CronogramaView() {
     }
   };
 
+  function agruparPorDisciplina(aulas: any[]): [string, any[]][] {
+    const grupos: Record<string, any[]> = {}
+    for (const a of aulas) {
+      const sep = a.titulo_personalizado?.includes(' — ') ? ' — ' : ' - '
+      const disciplina = a.titulo_personalizado?.includes(sep)
+        ? a.titulo_personalizado.split(sep)[0]
+        : 'Outros'
+      if (!grupos[disciplina]) grupos[disciplina] = []
+      grupos[disciplina].push(a)
+    }
+    return Object.entries(grupos)
+  }
+
   if (showGerar) {
     return <GerarCronograma onVoltar={() => setShowGerar(false)} onGerado={() => { setShowGerar(false); }} />;
   }
@@ -246,24 +259,31 @@ export default function CronogramaView() {
                     </div>
 
                     {dia.aulas && dia.aulas.length > 0 && (
-                      <div className="space-y-1.5">
-                        {dia.aulas.map((aula: any) => (
-                          <div key={aula.id} className="flex items-center gap-2.5 bg-zinc-950/50 rounded-xl px-3 py-2">
-                            <button onClick={() => toggleAulaConcluida(aula.id, aula.concluido, aula.aula_id || undefined)}
-                              className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
-                                aula.concluido ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-700 hover:border-orange-500/50'
-                              }`}>
-                              {aula.concluido && <Check className="w-3 h-3 text-black stroke-[4px]" />}
-                            </button>
-                            <span className={`text-xs flex-1 ${aula.concluido ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>
-                              {aula.titulo_personalizado || 'Aula'}
-                            </span>
-                            {aula.materia_id && !aula.aula_id && (
-                              <span className="text-[9px] text-orange-500/60 font-bold uppercase tracking-wider mr-1">Matéria</span>
-                            )}
-                            {aula.duracao_minutos && (
-                              <span className="text-[10px] text-zinc-500 font-mono">{aula.duracao_minutos}min</span>
-                            )}
+                      <div className="space-y-2">
+                        {agruparPorDisciplina(dia.aulas).map(([disciplina, aulas]) => (
+                          <div key={disciplina}>
+                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1 ml-1">{disciplina}</p>
+                            <div className="space-y-1">
+                              {aulas.map((aula: any) => (
+                                <div key={aula.id} className="flex items-center gap-2.5 bg-zinc-950/50 rounded-xl px-3 py-2">
+                                  <button onClick={() => toggleAulaConcluida(aula.id, aula.concluido, aula.aula_id || undefined)}
+                                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${
+                                      aula.concluido ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-700 hover:border-orange-500/50'
+                                    }`}>
+                                    {aula.concluido && <Check className="w-3 h-3 text-black stroke-[4px]" />}
+                                  </button>
+                                  <span className={`text-xs flex-1 ${aula.concluido ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>
+                                    {aula.titulo_personalizado || 'Aula'}
+                                  </span>
+                                  {aula.materia_id && !aula.aula_id && (
+                                    <span className="text-[9px] text-orange-500/60 font-bold uppercase tracking-wider mr-1">Matéria</span>
+                                  )}
+                                  {aula.duracao_minutos && (
+                                    <span className="text-[10px] text-zinc-500 font-mono">{aula.duracao_minutos}min</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         ))}
                       </div>

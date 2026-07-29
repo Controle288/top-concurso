@@ -36,6 +36,7 @@ const AdminForum = lazy(() => import('./pages/admin/AdminForum'))
 const AdminTickets = lazy(() => import('./pages/admin/AdminTicketsAdmin'))
 const AdminCursos = lazy(() => import('./pages/admin/AdminCursos'))
 const AdminMaterias = lazy(() => import('./pages/admin/AdminMaterias'))
+const AdminTemplates = lazy(() => import('./pages/admin/AdminTemplates'))
 
 const fallback = (
   <div className="flex items-center justify-center py-20">
@@ -111,6 +112,7 @@ function AppContent() {
             <Route path="/admin/tickets" element={<AdminRoute><ErrorBoundary><AdminTickets /></ErrorBoundary></AdminRoute>} />
             <Route path="/admin/materias" element={<AdminRoute><ErrorBoundary><AdminMaterias /></ErrorBoundary></AdminRoute>} />
             <Route path="/admin/cursos" element={<AdminRoute><ErrorBoundary><AdminCursos /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/templates" element={<AdminRoute><ErrorBoundary><AdminTemplates /></ErrorBoundary></AdminRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

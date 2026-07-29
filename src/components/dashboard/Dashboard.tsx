@@ -13,6 +13,7 @@ import { useQuestStats } from '@/lib/queries/useQuestaoRespostas'
 import { useDashboardData } from '@/lib/queries/useDashboard'
 import NewsMural from './NewsMural'
 import ConcursosAbertos from './ConcursosAbertos'
+import GradePreview from './GradePreview'
 import PullToRefresh from '@/components/shared/PullToRefresh'
 
 const TaskItem = memo(function TaskItem({
@@ -310,35 +311,22 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Progresso */}
+        {/* Grade Curricular */}
         {concursoProgress.length > 0 && (
-          <div className="card-glass p-5 animate-slideUp">
-            <div className="flex items-center justify-between mb-4">
+          <div className="space-y-3 animate-slideUp">
+            <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-orange-500" />
-                Progresso por Concurso
+                Grade Curricular
               </h3>
               <button onClick={() => navigate('/cronograma')} className="text-xs text-orange-500 font-bold flex items-center gap-1 hover:gap-1.5 transition-all">
-                Ver tudo <ChevronRight className="w-3 h-3" />
+                Cronograma <ChevronRight className="w-3 h-3" />
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {concursoProgress.map((cp: { id: string; titulo: string; total: number; concluido: number }) => {
-                const pct = cp.total > 0 ? Math.round((cp.concluido / cp.total) * 100) : 0
-                return (
-                  <div key={cp.id}>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-zinc-400 font-medium truncate mr-2">{cp.titulo}</span>
-                      <span className="text-zinc-600 font-mono text-[11px] shrink-0">{cp.concluido}/{cp.total}</span>
-                    </div>
-                    <div className="h-2.5 bg-zinc-800/60 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-700 ${
-                        pct >= 70 ? 'bg-emerald-500' : pct >= 30 ? 'bg-orange-500' : 'bg-zinc-600'
-                      }`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {concursoProgress.map((cp: { id: string; titulo: string; total: number; concluido: number }) => (
+                <GradePreview key={cp.id} concursoId={cp.id} titulo={cp.titulo} />
+              ))}
             </div>
           </div>
         )}
