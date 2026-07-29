@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "seed:aulas": "tsx --env-file=.env.local supabase/seed-aulas.ts",
     "seed:tudo": "tsx --env-file=.env.local supabase/seed-all.ts",
     "seed:questoes": "tsx --env-file=.env.local supabase/seed-questoes.ts"
@@ -17,6 +19,8 @@
     "@stripe/stripe-js": "^9.12.0",
     "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/vite": "^4.1.14",
+    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-query-devtools": "^5.101.4",
     "@vitejs/plugin-react": "^5.0.4",
     "lucide-react": "^0.546.0",
     "react": "^19.0.1",
@@ -25,13 +29,18 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.16",
     "tailwindcss": "^4.3.2",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "vitest": "^4.1.10"
   }
 }

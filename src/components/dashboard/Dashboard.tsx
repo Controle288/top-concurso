@@ -7,63 +7,50 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from '@/lib/notifications'
+import { useTarefasDiarias, useToggleTarefa } from '@/lib/queries/useTarefasDiarias'
+import { useQuestStats } from '@/lib/queries/useQuestaoRespostas'
+import { useDashboardData } from '@/lib/queries/useDashboard'
 import NewsMural from './NewsMural'
 import ConcursosAbertos from './ConcursosAbertos'
 import PullToRefresh from '@/components/shared/PullToRefresh'
-
-interface Task {
-  id: string
-  title: string
-  type: string
-  subject: string
-  completed: boolean
-  duration: string
-}
-
-interface ConcursoProgress {
-  id: string
-  titulo: string
-  total: number
-  concluido: number
-}
 
 const TaskItem = memo(function TaskItem({
   task,
   onToggle,
 }: {
-  task: Task
-  onToggle: (id: string) => void
+  task: { id: string; titulo: string; tipo: string; assunto: string; concluida: boolean; duracao: string }
+  onToggle: (id: string, concluida: boolean) => void
 }) {
-  const tc = typeColor(task.type)
+  const tc = typeColor(task.tipo)
   return (
     <div
-      onClick={() => onToggle(task.id)}
+      onClick={() => onToggle(task.id, !task.concluida)}
       className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 cursor-pointer select-none ${
-        task.completed
+        task.concluida
           ? 'bg-zinc-900/30 border-zinc-800/30 opacity-60'
           : 'bg-zinc-900/50 border-zinc-800/50 hover:border-zinc-700/60'
       }`}
     >
       <div className="flex items-center gap-3.5">
         <div className={`w-5 h-5 rounded-lg flex items-center justify-center border-2 transition-all ${
-          task.completed ? 'bg-orange-500 border-orange-500' : 'border-zinc-700 bg-zinc-900/80'
+          task.concluida ? 'bg-orange-500 border-orange-500' : 'border-zinc-700 bg-zinc-900/80'
         }`}>
-          {task.completed && <Check className="w-3 h-3 stroke-[4px] text-black" />}
+          {task.concluida && <Check className="w-3 h-3 stroke-[4px] text-black" />}
         </div>
         <div className="space-y-1">
-          <p className={`text-sm font-semibold transition-all ${task.completed ? 'line-through text-zinc-600' : 'text-zinc-100'}`}>
-            {task.title}
+          <p className={`text-sm font-semibold transition-all ${task.concluida ? 'line-through text-zinc-600' : 'text-zinc-100'}`}>
+            {task.titulo}
           </p>
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${tc.bg} ${tc.text}`}>{task.type}</span>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${tc.bg} ${tc.text}`}>{task.tipo}</span>
             <span className="text-zinc-700 text-[10px]">•</span>
-            <span className="text-[10px] text-zinc-600 font-medium">{task.subject}</span>
+            <span className="text-[10px] text-zinc-600 font-medium">{task.assunto}</span>
           </div>
         </div>
       </div>
       <div className="flex items-center gap-1 text-zinc-600 font-mono text-[11px]">
         <Clock className="w-3 h-3" />
-        <span>{task.duration}</span>
+        <span>{task.duracao}</span>
       </div>
     </div>
   )
@@ -79,78 +66,44 @@ function typeColor(type: string) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { profile, refreshProfile } = useAuth()
+  const { session, profile, refreshProfile } = useAuth()
+  const userId = session?.user?.id
   const [showMenu, setShowMenu] = useState(false)
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [questStats, setQuestStats] = useState({ total: 0, correct: 0, rate: 0 })
-  const [aulasConcluidas, setAulasConcluidas] = useState(0)
-  const [concursoProgress, setConcursoProgress] = useState<ConcursoProgress[]>([])
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null)
   const [pushSubscribed, setPushSubscribed] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
   const [tasksExpanded, setTasksExpanded] = useState(true)
-  const [tasksLoading, setTasksLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const defaultTasks: Task[] = [
-    { id: 't1', title: 'Estudar Controle de Constitucionalidade', type: 'Teoria', subject: 'Direito Constitucional', completed: false, duration: '45 min' },
-    { id: 't2', title: 'Revisar Atos Administrativos', type: 'Revisão', subject: 'Direito Administrativo', completed: false, duration: '30 min' },
-    { id: 't3', title: 'Resolver 15 Questões de Crase', type: 'Exercícios', subject: 'Língua Portuguesa', completed: false, duration: '40 min' },
-    { id: 't4', title: 'Ler Lei 8.112/90 (Arts. 1º ao 20)', type: 'Teoria', subject: 'Direito Administrativo', completed: false, duration: '25 min' },
-  ]
+  const { data: tasks = [], isLoading: tasksLoading } = useTarefasDiarias(userId)
+  const { data: questStats = { total: 0, correct: 0, rate: 0 } } = useQuestStats(userId)
+  const { data: dashboardData, refetch: refetchDashboard } = useDashboardData(userId)
+  const toggleTarefa = useToggleTarefa()
 
-  const loadAllData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const [aulasCount, todasAulas, concluidas] = await Promise.all([
-      supabase.from('aulas_concluidas').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-      supabase.from('aulas').select('id, concurso_id'),
-      supabase.from('aulas_concluidas').select('aula_id').eq('user_id', user.id),
-    ])
-
-    if (aulasCount.count !== null) setAulasConcluidas(aulasCount.count)
-
-    if (todasAulas.data && concluidas.data) {
-      const setId = new Set(concluidas.data.map(c => c.aula_id))
-      const { data: concursos } = await supabase.from('concursos').select('id, titulo').limit(5)
-      if (concursos) {
-        const progress: ConcursoProgress[] = []
-        for (const c of concursos) {
-          const aulasDoConcurso = todasAulas.data.filter(a => a.concurso_id === c.id)
-          const total = aulasDoConcurso.length
-          if (total === 0) continue
-          const concluido = aulasDoConcurso.filter(a => setId.has(a.id)).length
-          progress.push({ id: c.id, titulo: c.titulo, total, concluido })
-        }
-        setConcursoProgress(progress)
-      }
-    }
-  }, [])
+  const aulasConcluidas = dashboardData?.aulasConcluidas ?? 0
+  const concursoProgress = dashboardData?.concursoProgress ?? []
 
   useEffect(() => {
-    loadAllData()
-    loadQuestStats()
-    loadTasks()
     setNotifPermission(Notification.permission)
     isPushSubscribed().then(setPushSubscribed)
-  }, [loadAllData])
+  }, [])
 
   const handleRefresh = async () => {
     setRefreshing(true)
     await Promise.all([
-      loadAllData(),
+      refetchDashboard(),
       refreshProfile(),
     ])
-    loadQuestStats()
-    loadTasks()
     setRefreshing(false)
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    window.location.reload()
   }
+
+  const handleToggleTask = useCallback((id: string, concluida: boolean) => {
+    toggleTarefa.mutate({ id, concluida })
+  }, [toggleTarefa])
 
   const solicitarNotificacao = async () => {
     setPushLoading(true)
@@ -169,38 +122,7 @@ export default function Dashboard() {
     setPushLoading(false)
   }
 
-  const loadQuestStats = () => {
-    const saved = localStorage.getItem('topconcurso_questoes')
-    if (saved) {
-      const history = JSON.parse(saved)
-      const total = history.length
-      const correct = history.filter((h: any) => h.correct).length
-      const rate = total > 0 ? Math.round((correct / total) * 100) : 0
-      setQuestStats({ total, correct, rate })
-    }
-  }
-
-  const loadTasks = () => {
-    setTasksLoading(true)
-    const saved = localStorage.getItem('topconcurso_tasks')
-    if (saved) {
-      setTasks(JSON.parse(saved))
-    } else {
-      setTasks(defaultTasks)
-      localStorage.setItem('topconcurso_tasks', JSON.stringify(defaultTasks))
-    }
-    setTasksLoading(false)
-  }
-
-  const toggleTask = useCallback((id: string) => {
-    setTasks(prev => {
-      const updated = prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t)
-      localStorage.setItem('topconcurso_tasks', JSON.stringify(updated))
-      return updated
-    })
-  }, [])
-
-  const completedTasks = tasks.filter(t => t.completed).length
+  const completedTasks = tasks.filter(t => t.concluida).length
   const totalTasks = tasks.length
   const completionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
@@ -340,7 +262,7 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {concursoProgress.map((cp: ConcursoProgress) => {
+              {concursoProgress.map((cp: { id: string; titulo: string; total: number; concluido: number }) => {
                 const pct = cp.total > 0 ? Math.round((cp.concluido / cp.total) * 100) : 0
                 return (
                   <div key={cp.id}>
@@ -382,7 +304,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 tasks.map(task => (
-                  <TaskItem key={task.id} task={task} onToggle={toggleTask} />
+                  <TaskItem key={task.id} task={task} onToggle={handleToggleTask} />
                 ))
               )}
             </div>

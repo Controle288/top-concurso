@@ -39,8 +39,6 @@ export default function LoginPage() {
       } else {
         setMessage('Credenciais inválidas.')
       }
-    } else {
-      window.location.reload()
     }
     setLoading(false)
   }

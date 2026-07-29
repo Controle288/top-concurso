@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Questao } from '@/types'
 import { Check, X, ChevronRight, Award, RotateCcw, AlertCircle, Sparkles, Trophy, Timer, Play, Crown, Search, SlidersHorizontal, GraduationCap } from 'lucide-react'
 import { useAuth } from '@/lib/AuthContext'
+import { useSalvarResposta } from '@/lib/queries/useQuestaoRespostas'
 import QuestionComments from '@/components/shared/QuestionComments'
 import SectionHeader from '../shared/SectionHeader'
 
@@ -92,6 +93,7 @@ export default function Questions() {
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const salvarResposta = useSalvarResposta()
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -207,10 +209,7 @@ export default function Questions() {
     if (isCorrect) setCorrectAnswers(prev => prev + 1)
     const entry = { id: currentQuestion.id, correct: isCorrect }
     setScoreHistory(prev => [...prev, entry])
-    const saved = localStorage.getItem('topconcurso_questoes')
-    const history = saved ? JSON.parse(saved) : []
-    history.push({ id: currentQuestion.id, correct: isCorrect, date: new Date().toISOString() })
-    localStorage.setItem('topconcurso_questoes', JSON.stringify(history))
+    salvarResposta.mutate({ questaoId: currentQuestion.id, correta: isCorrect })
   }
 
   const handleNext = () => {

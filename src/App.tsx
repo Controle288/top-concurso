@@ -7,6 +7,7 @@ import DesktopSidebar from './components/layout/DesktopSidebar'
 import BottomNav from './components/layout/BottomNav'
 import ErrorBoundary from './lib/ErrorBoundary'
 import Onboarding from './components/shared/Onboarding'
+import AdminRoute from './components/shared/AdminRoute'
 import { useStudyTimer } from './lib/useStudyTimer'
 
 const Dashboard = lazy(() => import('./components/dashboard/Dashboard'))
@@ -69,8 +70,6 @@ function AppContent() {
     localStorage.setItem('topconcurso_onboarding', 'true')
   }
 
-  const isAdmin = profile?.role === 'admin'
-
   return (
     <>
       {showOnboarding && <Onboarding onComplete={completeOnboarding} />}
@@ -92,15 +91,15 @@ function AppContent() {
             <Route path="/perfil" element={<ErrorBoundary><Perfil /></ErrorBoundary>} />
             <Route path="/revisao" element={<ErrorBoundary><RevisaoEspacada /></ErrorBoundary>} />
             <Route path="/planos" element={<ErrorBoundary><Planos /></ErrorBoundary>} />
-            {isAdmin && <Route path="/admin" element={<ErrorBoundary><AdminDashboard /></ErrorBoundary>} />}
-            {isAdmin && <Route path="/admin/concursos" element={<ErrorBoundary><AdminConcursos /></ErrorBoundary>} />}
-            {isAdmin && <Route path="/admin/usuarios" element={<ErrorBoundary><AdminUsuarios /></ErrorBoundary>} />}
-            {isAdmin && <Route path="/admin/questoes" element={<ErrorBoundary><AdminQuestoes /></ErrorBoundary>} />}
-            {isAdmin && <Route path="/admin/aulas" element={<ErrorBoundary><AdminAulas /></ErrorBoundary>} />}
-            {isAdmin && <Route path="/admin/pdfs" element={<ErrorBoundary><AdminPDFs /></ErrorBoundary>} />}
-            {isAdmin && <Route path="/admin/forum" element={<ErrorBoundary><AdminForum /></ErrorBoundary>} />}
-            {isAdmin && <Route path="/admin/tickets" element={<ErrorBoundary><AdminTickets /></ErrorBoundary>} />}
-            {isAdmin && <Route path="/admin/cursos" element={<ErrorBoundary><AdminCursos /></ErrorBoundary>} />}
+            <Route path="/admin" element={<AdminRoute><ErrorBoundary><AdminDashboard /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/concursos" element={<AdminRoute><ErrorBoundary><AdminConcursos /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/usuarios" element={<AdminRoute><ErrorBoundary><AdminUsuarios /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/questoes" element={<AdminRoute><ErrorBoundary><AdminQuestoes /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/aulas" element={<AdminRoute><ErrorBoundary><AdminAulas /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/pdfs" element={<AdminRoute><ErrorBoundary><AdminPDFs /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/forum" element={<AdminRoute><ErrorBoundary><AdminForum /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/tickets" element={<AdminRoute><ErrorBoundary><AdminTickets /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/cursos" element={<AdminRoute><ErrorBoundary><AdminCursos /></ErrorBoundary></AdminRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

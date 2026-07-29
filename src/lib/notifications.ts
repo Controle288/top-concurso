@@ -16,8 +16,7 @@ export async function subscribeToPush(): Promise<boolean> {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return false;
 
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.ready;
 
     if (!VAPID_PUBLIC_KEY) {
       new Notification('Top Concurso', {
