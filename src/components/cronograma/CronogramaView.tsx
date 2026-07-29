@@ -258,6 +258,9 @@ export default function CronogramaView() {
                             <span className={`text-xs flex-1 ${aula.concluido ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>
                               {aula.titulo_personalizado || 'Aula'}
                             </span>
+                            {aula.materia_id && !aula.aula_id && (
+                              <span className="text-[9px] text-orange-500/60 font-bold uppercase tracking-wider mr-1">Matéria</span>
+                            )}
                             {aula.duracao_minutos && (
                               <span className="text-[10px] text-zinc-500 font-mono">{aula.duracao_minutos}min</span>
                             )}

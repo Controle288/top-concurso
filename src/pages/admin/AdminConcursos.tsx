@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, BookTemplate, Loader2 } from 'lucide-react';
+import { usePopularMaterias } from '@/lib/queries/useTemplates';
 import type { Concurso, Banca } from '@/types';
 
 export default function AdminConcursos() {
@@ -28,6 +29,7 @@ export default function AdminConcursos() {
     },
   });
 
+  const popular = usePopularMaterias();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['concursos'] });
 
   const resetForm = () => { setForm({ titulo: '', orgao: '', banca_id: '', vagas: 0, inscritos_estimados: 0, data_prova: '', status: 'aberto', nivel: 'superior', salario: 0 }); setEditing(null); setShowForm(false); };
@@ -96,6 +98,11 @@ export default function AdminConcursos() {
             <div className="flex justify-between items-start gap-2">
               <div className="flex-1 min-w-0"><h3 className="text-sm font-bold text-zinc-100">{c.titulo}</h3><p className="text-[10px] text-zinc-500">{c.orgao} {(c as any).bancas?.nome && `• ${(c as any).bancas.nome}`}</p></div>
               <div className="flex gap-1 shrink-0">
+                <button onClick={() => popular.mutate(c.id)} disabled={popular.isPending}
+                  className="p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-emerald-500 disabled:text-zinc-700"
+                  title="Popular matérias padrão">
+                  {popular.isPending && popular.variables === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookTemplate className="w-3.5 h-3.5" />}
+                </button>
                 <button onClick={() => handleEdit(c)} className="p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-orange-500"><Pencil className="w-3.5 h-3.5" /></button>
                 <button onClick={() => handleDelete(c.id)} className="p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>

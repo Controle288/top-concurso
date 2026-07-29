@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { useFiltrosConcursos } from '@/lib/queries/useConcursos'
-import { useAulasPorConcurso } from '@/lib/queries/useAulas'
-import type { Aula } from '@/types'
-import { Sparkles, ArrowLeft, Clock, BookOpen, Plus, X } from 'lucide-react'
+import { useMaterias } from '@/lib/queries/useMaterias'
+import type { Materia } from '@/types'
+import { Sparkles, ArrowLeft, Clock, BookOpen, Plus, X, Layers } from 'lucide-react'
 import { isBusinessDay } from '@/lib/businessDays'
 
 interface GerarCronogramaProps {
@@ -16,7 +16,7 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
   const { session } = useAuth()
   const { data: concursos = [] } = useFiltrosConcursos()
   const [concursoId, setConcursoId] = useState('')
-  const { data: aulasData = [] } = useAulasPorConcurso(concursoId)
+  const { data: materiasData = [] } = useMaterias(concursoId)
   const [horasDia, setHorasDia] = useState('3')
   const [turno, setTurno] = useState<'manha' | 'tarde' | 'noite' | 'integral'>('integral')
   const [gerando, setGerando] = useState(false)
@@ -42,8 +42,8 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
     const concurso = concursos.find(c => c.id === concursoId)
     if (!concurso) { setGerando(false); return }
 
-    const aulas = aulasData
-    if (aulas.length === 0) { setGerando(false); return }
+    const materias = materiasData
+    if (materias.length === 0) { setGerando(false); return }
 
     const horasPorDia = parseFloat(horasDia)
 
@@ -59,17 +59,17 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
 
     if (error || !cronograma) { setGerando(false); return }
 
-    let aulasRestantes = [...aulas]
+    let materiasRestantes = [...materias]
     let diaAtual = new Date()
     let diaIndex = 0
 
-    const totalAulas = aulas.length
-    const aulasPorDia = Math.floor((horasPorDia * 60) / 45)
-    const diasEstudo = Math.ceil(totalAulas / Math.max(aulasPorDia, 1))
+    const minutosPorMateria = 45
+    const materiasPorDia = Math.floor((horasPorDia * 60) / minutosPorMateria)
+    const diasEstudo = Math.ceil(materias.length / Math.max(materiasPorDia, 1))
     const revisoesPorSemana = incluirRevisao ? Math.ceil(diasEstudo / 5) : 0
     let revisoesAdicionadas = 0
 
-    while (aulasRestantes.length > 0) {
+    while (materiasRestantes.length > 0) {
       const diaData = new Date(diaAtual)
       diaData.setDate(diaData.getDate() + diaIndex)
 
@@ -80,22 +80,15 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
         continue
       }
 
-      let minutosRestantes = horasPorDia * 60
-      const aulasDoDia: Aula[] = []
+      const materiasDoDia: Materia[] = []
 
-      while (aulasRestantes.length > 0 && minutosRestantes > 0) {
-        const aula = aulasRestantes[0]
-        if (aula.duracao_minutos <= minutosRestantes) {
-          aulasDoDia.push(aula)
-          minutosRestantes -= aula.duracao_minutos
-          aulasRestantes.shift()
-        } else {
-          break
-        }
+      while (materiasRestantes.length > 0 && materiasDoDia.length < materiasPorDia) {
+        materiasDoDia.push(materiasRestantes[0])
+        materiasRestantes.shift()
       }
 
-      if (aulasDoDia.length > 0) {
-        await createDayWithAulas(cronograma.id, diaData, horasPorDia, minutosRestantes, aulasDoDia)
+      if (materiasDoDia.length > 0) {
+        await createDayWithMaterias(cronograma.id, diaData, horasPorDia, materiasDoDia, minutosPorMateria)
       }
 
       diaIndex++
@@ -124,26 +117,27 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
     onGerado()
   }
 
-  const createDayWithAulas = async (
+  const createDayWithMaterias = async (
     cronogramaId: string,
     date: Date,
     horasPorDia: number,
-    minutosRestantes: number,
-    aulas: Aula[]
+    materias: Materia[],
+    minutosPorMateria: number
   ) => {
+    const totalMinutos = materias.length * minutosPorMateria
     const { data: dia } = await supabase.from('cronograma_dias').insert({
       cronograma_id: cronogramaId,
       data: date.toISOString().split('T')[0],
-      horas_previstas: horasPorDia - (minutosRestantes / 60),
+      horas_previstas: totalMinutos / 60,
     }).select().single()
 
-    if (dia && aulas.length > 0) {
+    if (dia && materias.length > 0) {
       await supabase.from('cronograma_aulas').insert(
-        aulas.map(a => ({
+        materias.map(m => ({
           cronograma_dia_id: dia.id,
-          aula_id: a.id,
-          titulo_personalizado: a.titulo,
-          duracao_minutos: a.duracao_minutos,
+          materia_id: m.id,
+          titulo_personalizado: `${m.disciplinas?.nome ? m.disciplinas.nome + ' - ' : ''}${m.nome}`,
+          duracao_minutos: minutosPorMateria,
           concluido: false,
           estourou_tempo: false,
         }))

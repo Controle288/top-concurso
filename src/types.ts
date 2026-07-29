@@ -145,6 +145,7 @@ export interface CronogramaAula {
   id: string;
   cronograma_dia_id: string;
   aula_id?: string;
+  materia_id?: string;
   titulo_personalizado?: string;
   youtube_url_personalizada?: string;
   duracao_minutos?: number;
@@ -267,6 +268,23 @@ export interface CursoProgresso {
   user_id: string;
   aula_id: string;
   concluido: boolean;
+  created_at: string;
+}
+
+export interface ConcursoTemplate {
+  id: string;
+  nome: string;
+  orgao_pattern: string;
+  created_at: string;
+  materias?: TemplateMateria[];
+}
+
+export interface TemplateMateria {
+  id: string;
+  template_id: string;
+  disciplina_nome: string;
+  materia_nome: string;
+  ordem: number;
   created_at: string;
 }
 
