@@ -54,8 +54,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone()
-          caches.open(CACHE).then((cache) => cache.put(request, clone))
+          if (request.method === 'GET' && response.status !== 206) {
+            const clone = response.clone()
+            caches.open(CACHE).then((cache) => cache.put(request, clone))
+          }
           return response
         })
         .catch(() => caches.match(request))
@@ -69,7 +71,7 @@ self.addEventListener('fetch', (event) => {
       caches.open(API_CACHE).then(async (cache) => {
         const cachedResponse = await cache.match(request)
         const fetchPromise = fetch(request).then((response) => {
-          if (response.ok) {
+          if (response.ok && request.method === 'GET' && response.status !== 206) {
             cache.put(request, response.clone())
           }
           return response
@@ -85,8 +87,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const clone = response.clone()
-          caches.open(CACHE).then((cache) => cache.put('/index.html', clone))
+          if (response.status !== 206) {
+            const clone = response.clone()
+            caches.open(CACHE).then((cache) => cache.put('/index.html', clone))
+          }
           return response
         })
         .catch(() => caches.match('/index.html'))
