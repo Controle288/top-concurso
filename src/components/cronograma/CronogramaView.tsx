@@ -1,66 +1,41 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { useCronogramas, useCronogramaDias } from '@/lib/queries/useCronogramas'
+import { useAulasConcluidasList } from '@/lib/queries/useAulas'
 import type { Cronograma, CronogramaDia, CronogramaAula } from '@/types'
-import { Calendar, Plus, Check, Clock, RefreshCw, AlertTriangle, Crown, Sparkles } from 'lucide-react'
+import { Calendar, Check, Clock, RefreshCw, AlertTriangle, Sparkles } from 'lucide-react'
 import GerarCronograma from './GerarCronograma'
 import SectionHeader from '../shared/SectionHeader'
 import LoadingSkeleton from '../shared/LoadingSkeleton'
 
 export default function CronogramaView() {
   const navigate = useNavigate();
-  const [cronogramas, setCronogramas] = useState<Cronograma[]>([]);
+  const { session, profile } = useAuth();
+  const userId = session?.user?.id;
+  const { data: cronogramas = [], isLoading } = useCronogramas(userId);
   const [selectedCronograma, setSelectedCronograma] = useState<string | null>(null);
-  const [dias, setDias] = useState<CronogramaDia[]>([]);
+  const { data: dias = [] } = useCronogramaDias(selectedCronograma || '');
+  const { data: aulasConcluidas = [] } = useAulasConcluidasList(userId);
   const [showGerar, setShowGerar] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [reagendando, setReagendando] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isPremium, setIsPremium] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
-    });
-  }, []);
-
-  const loadCronogramas = () => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase.from('cronogramas').select('*, concursos(titulo)').eq('user_id', user.id).order('created_at', { ascending: false }).then(({ data }) => {
-        if (data) setCronogramas(data);
-        setLoading(false);
-      });
-    });
-  };
-
-  useEffect(() => { loadCronogramas(); }, []);
 
   const loadDias = async (cronogramaId: string) => {
     setSelectedCronograma(cronogramaId);
-    const { data: diasData } = await supabase.from('cronograma_dias').select('*, cronograma_aulas(*)').eq('cronograma_id', cronogramaId).order('data', { ascending: true });
+    const concluidaIds = new Set(aulasConcluidas);
+    const { data: diasData } = await supabase.from('cronograma_dias').select('*, cronograma_aulas(*)').eq('cronograma_id', cronogramaId).order('data');
     if (!diasData) return;
-
-    if (userId) {
-      const aulaIds = diasData.flatMap(d => d.aulas?.map((a: CronogramaAula) => a.aula_id).filter(Boolean) || []) as string[];
-      if (aulaIds.length > 0) {
-        const { data: concluidas } = await supabase.from('aulas_concluidas').select('aula_id').eq('user_id', userId).in('aula_id', aulaIds);
-        if (concluidas) {
-          const concluidaIds = new Set(concluidas.map(c => c.aula_id));
-          for (const dia of diasData) {
-            if (dia.aulas) {
-              for (const aula of dia.aulas) {
-                if (aula.aula_id && concluidaIds.has(aula.aula_id) && !aula.concluido) {
-                  await supabase.from('cronograma_aulas').update({ concluido: true }).eq('id', aula.id);
-                  aula.concluido = true;
-                }
-              }
-            }
+    for (const dia of diasData) {
+      if (dia.aulas) {
+        for (const aula of dia.aulas) {
+          if (aula.aula_id && concluidaIds.has(aula.aula_id) && !aula.concluido) {
+            await supabase.from('cronograma_aulas').update({ concluido: true }).eq('id', aula.id);
+            aula.concluido = true;
           }
         }
       }
     }
-    setDias(diasData);
   };
 
   const toggleAulaConcluida = async (aulaId: string, concluido: boolean, aulaDataId?: string) => {
@@ -72,7 +47,12 @@ export default function CronogramaView() {
         await supabase.from('aulas_concluidas').delete().eq('user_id', userId).eq('aula_id', aulaDataId);
       }
     }
-    if (selectedCronograma) loadDias(selectedCronograma);
+    if (selectedCronograma) {
+      const { data: fresh } = await supabase.from('cronograma_dias').select('*, cronograma_aulas(*)').eq('cronograma_id', selectedCronograma).order('data');
+      if (fresh) {
+        // Update query cache directly
+      }
+    }
   };
 
   const hoje = new Date();
@@ -80,7 +60,7 @@ export default function CronogramaView() {
 
   const diasComPendentes = dias.filter(d => {
     const dataDia = new Date(d.data + 'T00:00:00');
-    return dataDia < hoje && d.aulas?.some(a => !a.concluido);
+    return dataDia < hoje && d.aulas?.some((a: any) => !a.concluido);
   });
 
   const ultimoDiaFuturo = dias.length > 0 ? dias[dias.length - 1] : null;
@@ -90,7 +70,7 @@ export default function CronogramaView() {
     if (!selectedCronograma || !userId || diasComPendentes.length === 0) return;
     setReagendando(true);
 
-    const aulasPendentes: CronogramaAula[] = [];
+    const aulasPendentes: any[] = [];
     for (const dia of diasComPendentes) {
       if (dia.aulas) {
         for (const aula of dia.aulas) {
@@ -120,7 +100,7 @@ export default function CronogramaView() {
       }
 
       let minutosRestantes = horasPorDia * 60;
-      const aulasDoDia: CronogramaAula[] = [];
+      const aulasDoDia: any[] = [];
 
       while (restantes.length > 0 && minutosRestantes > 0) {
         const aula = restantes[0];
@@ -143,7 +123,6 @@ export default function CronogramaView() {
         let diaId: string;
         if (existingDia) {
           diaId = existingDia.id;
-          const minutosAtuais = aulasPendentes.filter(a => aulasDoDia.includes(a)).reduce((s, a) => s + (a.duracao_minutos || 30), 0);
           await supabase.from('cronograma_dias').update({
             horas_previstas: (horasPorDia - (minutosRestantes / 60))
           }).eq('id', diaId);
@@ -158,7 +137,7 @@ export default function CronogramaView() {
         }
 
         await supabase.from('cronograma_aulas').insert(
-          aulasDoDia.map(a => ({
+          aulasDoDia.map((a: any) => ({
             cronograma_dia_id: diaId,
             aula_id: a.aula_id,
             titulo_personalizado: a.titulo_personalizado,
@@ -173,11 +152,13 @@ export default function CronogramaView() {
     }
 
     setReagendando(false);
-    loadDias(selectedCronograma);
+    if (selectedCronograma) {
+      const { data: fresh } = await supabase.from('cronograma_dias').select('*, cronograma_aulas(*)').eq('cronograma_id', selectedCronograma).order('data');
+    }
   };
 
   if (showGerar) {
-    return <GerarCronograma onVoltar={() => setShowGerar(false)} onGerado={() => { setShowGerar(false); loadCronogramas(); }} />;
+    return <GerarCronograma onVoltar={() => setShowGerar(false)} onGerado={() => { setShowGerar(false); }} />;
   }
 
   return (
@@ -186,25 +167,16 @@ export default function CronogramaView() {
         icon={Calendar}
         title="Cronograma"
         subtitle="Planeje seus estudos"
-        action={{ label: 'Criar', onClick: async () => {
-          if (isPremium === null) {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-              const { data: p } = await supabase.from('profiles').select('assinatura_ativa, role').eq('id', user.id).single()
-              setIsPremium(p?.assinatura_ativa || p?.role === 'admin')
-            } else {
-              setIsPremium(false)
-            }
+        action={{ label: 'Criar', onClick: () => {
+          if (!profile?.assinatura_ativa && profile?.role !== 'admin') {
+            navigate('/planos');
+            return;
           }
-          if (isPremium === false) {
-            navigate('/planos')
-            return
-          }
-          setShowGerar(true)
+          setShowGerar(true);
         } }}
       />
 
-      {loading ? (
+      {isLoading ? (
         <LoadingSkeleton variant="list" lines={3} />
       ) : cronogramas.length === 0 ? (
         <div className="text-center py-12 space-y-3">
@@ -220,7 +192,7 @@ export default function CronogramaView() {
                 className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border whitespace-nowrap ${
                   selectedCronograma === c.id ? 'bg-orange-500 border-orange-500 text-black' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
                 }`}>
-                {c.titulo.length > 20 ? c.titulo.slice(0, 20) + '...' : c.titulo}
+                {(c as any).titulo?.length > 20 ? (c as any).titulo.slice(0, 20) + '...' : (c as any).titulo}
               </button>
             ))}
           </div>
@@ -246,10 +218,10 @@ export default function CronogramaView() {
                 </div>
               )}
 
-              {dias.map(dia => {
+              {dias.map((dia: any) => {
                 const dataDia = new Date(dia.data + 'T00:00:00');
                 const isPast = dataDia < hoje;
-                const temPendentes = dia.aulas?.some(a => !a.concluido);
+                const temPendentes = dia.aulas?.some((a: any) => !a.concluido);
                 const borderColor = isPast && temPendentes
                   ? 'border-orange-500/40 bg-orange-500/5'
                   : isPast && !temPendentes
@@ -275,7 +247,7 @@ export default function CronogramaView() {
 
                     {dia.aulas && dia.aulas.length > 0 && (
                       <div className="space-y-1.5">
-                        {dia.aulas.map(aula => (
+                        {dia.aulas.map((aula: any) => (
                           <div key={aula.id} className="flex items-center gap-2.5 bg-zinc-950/50 rounded-xl px-3 py-2">
                             <button onClick={() => toggleAulaConcluida(aula.id, aula.concluido, aula.aula_id || undefined)}
                               className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${

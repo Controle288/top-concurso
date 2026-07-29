@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Aula, Questao } from '@/types';
+import { useAuth } from '@/lib/AuthContext';
+import { useAulas, useAulasConcluidasList, useDisciplinasPorConcurso } from '@/lib/queries/useAulas';
+import { useConcursos, useDisciplinas } from '@/lib/queries/useConcursos';
+import type { Questao } from '@/types';
 import { Play, X, Film, Clock, User, Check, CheckCircle, Brain, ChevronRight } from 'lucide-react';
 import { extractYoutubeId } from '@/lib/youtube';
 import SectionHeader from '../shared/SectionHeader';
@@ -12,69 +15,35 @@ function getEmbedUrl(youtubeId: string) {
 }
 
 export default function VideoLibrary() {
-  const [aulas, setAulas] = useState<(Aula & { concluida?: boolean })[]>([]);
-  const [concursos, setConcursos] = useState<{ id: string; titulo: string }[]>([]);
-  const [disciplinas, setDisciplinas] = useState<{ id: string; nome: string; concurso_id?: string }[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const { session } = useAuth();
+  const userId = session?.user?.id;
+  const { data: aulas = [], isLoading } = useAulas();
+  const { data: aulasConcluidas = [] } = useAulasConcluidasList(userId);
+  const { data: concursos = [] } = useConcursos();
   const [filterConcurso, setFilterConcurso] = useState('');
+  const { data: disciplinasAll = [] } = useDisciplinas();
+  const { data: disciplinasFiltradas = [] } = useDisciplinasPorConcurso(filterConcurso);
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterDisciplina, setFilterDisciplina] = useState('');
-  const [selectedAula, setSelectedAula] = useState<(Aula & { concluida?: boolean }) | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-
+  const [selectedAula, setSelectedAula] = useState<any>(null);
   const [questoes, setQuestoes] = useState<(Questao & { selected?: string | null; answered?: boolean })[]>([]);
   const [questoesLoading, setQuestoesLoading] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
-    });
-  }, []);
+  const aulasComStatus = aulas.map(a => ({
+    ...a,
+    concluida: aulasConcluidas.includes(a.id),
+  }));
 
-  useEffect(() => {
-    Promise.all([
-      supabase.from('concursos').select('id, titulo').order('titulo'),
-      supabase.from('disciplinas').select('id, nome'),
-    ]).then(([cRes, dRes]) => {
-      if (cRes.data) setConcursos(cRes.data);
-      if (dRes.data) setDisciplinas(dRes.data);
-    });
-  }, []);
+  const disciplinas = filterConcurso ? disciplinasFiltradas : disciplinasAll;
 
-  useEffect(() => {
-    if (!userId) {
-      supabase.from('aulas').select('*, disciplinas(nome)').order('created_at', { ascending: false }).then(({ data }) => {
-        if (data) setAulas(data);
-        setLoading(false);
-      });
-      return;
-    }
-    supabase.from('aulas').select('*, disciplinas(nome)').order('created_at', { ascending: false }).then(({ data: aulasData }) => {
-      if (!aulasData) { setLoading(false); return; }
-      supabase.from('aulas_concluidas').select('aula_id').eq('user_id', userId).then(({ data: concluidas }) => {
-        const concluidaIds = new Set(concluidas?.map(c => c.aula_id) || []);
-        setAulas(aulasData.map(a => ({ ...a, concluida: concluidaIds.has(a.id) })));
-        setLoading(false);
-      });
-    });
-  }, [userId]);
-
-  useEffect(() => {
-    if (filterConcurso) {
-      supabase.from('disciplinas').select('*').eq('concurso_id', filterConcurso).then(({ data }) => {
-        if (data) setDisciplinas(data);
-      });
-    }
-  }, [filterConcurso]);
-
-  const aulasFiltradas = aulas.filter(a => {
+  const aulasFiltradas = aulasComStatus.filter(a => {
     const matchSearch = a.titulo.toLowerCase().includes(searchQuery.toLowerCase());
     const matchConcurso = !filterConcurso || a.concurso_id === filterConcurso;
     const matchDisciplina = !filterDisciplina || a.disciplina_id === filterDisciplina;
     return matchSearch && matchConcurso && matchDisciplina;
   });
 
-  const handleToggleConcluida = async (aula: Aula & { concluida?: boolean }) => {
+  const handleToggleConcluida = async (aula: any) => {
     if (!userId) return;
     if (aula.concluida) {
       await supabase.from('aulas_concluidas').delete().eq('user_id', userId).eq('aula_id', aula.id);
@@ -84,19 +53,19 @@ export default function VideoLibrary() {
         .select('id, cronograma_dia_id')
         .eq('aula_id', aula.id);
       if (cronoAulas && cronoAulas.length > 0) {
-        const diaIds = [...new Set(cronoAulas.map(ca => ca.cronograma_dia_id))];
+        const diaIds = [...new Set(cronoAulas.map((ca: any) => ca.cronograma_dia_id))];
         const { data: dias } = await supabase.from('cronograma_dias')
           .select('id, cronograma_id')
           .in('id', diaIds);
         if (dias) {
-          const cronoIds = [...new Set(dias.map(d => d.cronograma_id))];
+          const cronoIds = [...new Set(dias.map((d: any) => d.cronograma_id))];
           const { data: cronogramas } = await supabase.from('cronogramas')
             .select('id')
             .in('id', cronoIds)
             .eq('user_id', userId);
           if (cronogramas) {
-            const meusCronoDiaIds = dias.filter(d => cronogramas.some(c => c.id === d.cronograma_id)).map(d => d.id);
-            const minhasCronoAulas = cronoAulas.filter(ca => meusCronoDiaIds.includes(ca.cronograma_dia_id));
+            const meusCronoDiaIds = dias.filter((d: any) => cronogramas.some((c: any) => c.id === d.cronograma_id)).map((d: any) => d.id);
+            const minhasCronoAulas = cronoAulas.filter((ca: any) => meusCronoDiaIds.includes(ca.cronograma_dia_id));
             for (const ca of minhasCronoAulas) {
               await supabase.from('cronograma_aulas').update({ concluido: true }).eq('id', ca.id);
             }
@@ -104,11 +73,9 @@ export default function VideoLibrary() {
         }
       }
     }
-    setAulas(prev => prev.map(a => a.id === aula.id ? { ...a, concluida: !aula.concluida } : a));
-    if (selectedAula?.id === aula.id) setSelectedAula(prev => prev ? { ...prev, concluida: !aula.concluida } : null);
   };
 
-  const openAula = async (aula: Aula & { concluida?: boolean }) => {
+  const openAula = async (aula: any) => {
     setSelectedAula(aula);
     setQuestoes([]);
     if (!aula.disciplina_id) return;
@@ -117,7 +84,7 @@ export default function VideoLibrary() {
       .select('*, bancas(nome)')
       .eq('disciplina_id', aula.disciplina_id)
       .limit(15);
-    if (data) setQuestoes(data.map(q => ({ ...q, selected: null, answered: false })));
+    if (data) setQuestoes(data.map((q: any) => ({ ...q, selected: null, answered: false })));
     setQuestoesLoading(false);
   };
 
@@ -133,6 +100,8 @@ export default function VideoLibrary() {
     ));
   };
 
+  const concluidaIds = new Set(aulasConcluidas);
+
   return (
     <div className="flex flex-col gap-5 py-4">
       <SectionHeader icon={Film} title="Videoaulas" subtitle="Assista e marque como concluído" />
@@ -143,22 +112,22 @@ export default function VideoLibrary() {
         <select value={filterConcurso} onChange={(e) => { setFilterConcurso(e.target.value); setFilterDisciplina(''); }}
           className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap">
           <option value="">Todos Concursos</option>
-          {concursos.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+          {concursos.map((c: any) => <option key={c.id} value={c.id}>{c.titulo}</option>)}
         </select>
         <select value={filterDisciplina} onChange={(e) => setFilterDisciplina(e.target.value)}
           className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50 whitespace-nowrap">
           <option value="">Todas Disciplinas</option>
-          {disciplinas.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+          {disciplinas.map((d: any) => <option key={d.id} value={d.id}>{d.nome}</option>)}
         </select>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-64 w-full rounded-2xl" />)}
         </div>
       ) : aulasFiltradas.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {aulasFiltradas.map((aula) => (
+          {aulasFiltradas.map((aula: any) => (
             <div key={aula.id} onClick={() => openAula(aula)}
               className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl overflow-hidden cursor-pointer hover:border-zinc-700/80 transition-all group relative">
               {aula.concluida && (
@@ -189,7 +158,7 @@ export default function VideoLibrary() {
                 <h3 className="text-sm font-bold text-zinc-100 line-clamp-2">{aula.titulo}</h3>
                 <div className="flex items-center gap-2 text-[10px] text-zinc-500">
                   {aula.instrutor && <span className="flex items-center gap-1"><User className="w-3 h-3" />{aula.instrutor}</span>}
-                  {(aula as Aula & { disciplinas?: { nome: string } }).disciplinas?.nome && <span className="text-orange-400/80 font-semibold">{(aula as Aula & { disciplinas?: { nome: string } }).disciplinas?.nome}</span>}
+                  {aula.disciplinas?.nome && <span className="text-orange-400/80 font-semibold">{aula.disciplinas?.nome}</span>}
                 </div>
               </div>
             </div>
@@ -231,11 +200,11 @@ export default function VideoLibrary() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {(selectedAula as Aula & { disciplinas?: { nome: string } }).disciplinas?.nome && questoes.length > 0 && (
+            {selectedAula.disciplinas?.nome && questoes.length > 0 && (
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-orange-500" />
                 <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                  Praticar — {questoes.length} questões sobre {(selectedAula as Aula & { disciplinas?: { nome: string } }).disciplinas?.nome}
+                  Praticar — {questoes.length} questões sobre {selectedAula.disciplinas?.nome}
                 </span>
               </div>
             )}
@@ -259,7 +228,7 @@ export default function VideoLibrary() {
                 </div>
 
                 <div className="space-y-1.5">
-                  {(Array.isArray(q.alternativas) ? q.alternativas : []).map(alt => {
+                  {(Array.isArray(q.alternativas) ? q.alternativas : []).map((alt: any) => {
                     const isSelected = q.selected === alt.key;
                     const isCorrect = q.answered && alt.key === q.correta;
                     const isWrong = q.answered && isSelected && alt.key !== q.correta;

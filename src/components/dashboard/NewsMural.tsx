@@ -1,30 +1,22 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Noticia } from '@/types';
-import { Newspaper, Megaphone, FileText, AlertTriangle, ExternalLink } from 'lucide-react';
+import { useNoticias } from '@/lib/queries/useNoticias'
+import { Newspaper, Megaphone, FileText, AlertTriangle, ExternalLink } from 'lucide-react'
 
-const tipoIcon = {
+const tipoIcon: Record<string, React.ComponentType<{ className?: string }>> = {
   noticia: Newspaper,
   edital: FileText,
   dica: Megaphone,
   aviso: AlertTriangle,
-};
+}
 
-const tipoColor = {
+const tipoColor: Record<string, string> = {
   noticia: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
   edital: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
   dica: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
   aviso: 'text-red-400 bg-red-500/10 border-red-500/20',
-};
+}
 
 export default function NewsMural() {
-  const [noticias, setNoticias] = useState<Noticia[]>([]);
-
-  useEffect(() => {
-    supabase.from('noticias').select('*').order('created_at', { ascending: false }).limit(10).then(({ data }) => {
-      if (data) setNoticias(data);
-    });
-  }, []);
+  const { data: noticias = [] } = useNoticias()
 
   if (noticias.length === 0) return null;
 
@@ -36,10 +28,10 @@ export default function NewsMural() {
       </h2>
       <div className="space-y-2">
         {noticias.map((n) => {
-          const Icon = tipoIcon[n.tipo];
+          const Icon = tipoIcon[n.tipo] || Newspaper;
           return (
             <div key={n.id} className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-800/80 flex gap-3">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${tipoColor[n.tipo]}`}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${tipoColor[n.tipo] || tipoColor.noticia}`}>
                 <Icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">

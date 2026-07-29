@@ -1,63 +1,44 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import type { Ticket, TicketMessage } from '@/types'
+import { useState } from 'react'
+import { useAuth } from '@/lib/AuthContext'
+import { useTickets, useTicketMessages, useCreateTicket, useSendTicketMessage } from '@/lib/queries/useTickets'
 import { HelpCircle, Plus, Send, X, ArrowLeft, User, MessageCircle } from 'lucide-react'
 import SectionHeader from '../shared/SectionHeader'
 import EmptyState from '../shared/EmptyState'
 import LoadingSkeleton from '../shared/LoadingSkeleton'
 
 export default function Tickets() {
-  const [tickets, setTickets] = useState<Ticket[]>([])
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [messages, setMessages] = useState<TicketMessage[]>([])
+  const { session } = useAuth()
+  const userId = session?.user?.id
+  const { data: tickets = [], isLoading } = useTickets(userId)
+  const [selectedTicket, setSelectedTicket] = useState<any>(null)
+  const { data: messages = [] } = useTicketMessages(selectedTicket?.id || '')
+  const createTicket = useCreateTicket()
+  const sendMessage = useSendTicketMessage()
   const [showForm, setShowForm] = useState(false)
   const [assunto, setAssunto] = useState('')
   const [descricao, setDescricao] = useState('')
   const [newMessage, setNewMessage] = useState('')
-  const [loading, setLoading] = useState(true)
 
-  const loadTickets = () => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      supabase.from('tickets').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).then(({ data }) => {
-        if (data) setTickets(data)
-        setLoading(false)
-      })
-    })
-  }
-
-  useEffect(() => { loadTickets() }, [])
-
-  const loadMessages = (ticketId: string) => {
-    supabase.from('ticket_messages').select('*, profiles!ticket_messages_user_id_fkey(nome, role)').eq('ticket_id', ticketId).order('created_at', { ascending: true }).then(({ data }) => {
-      if (data) setMessages(data)
-    })
-  }
-
-  const openTicket = (ticket: Ticket) => {
+  const openTicket = (ticket: any) => {
     setSelectedTicket(ticket)
-    loadMessages(ticket.id)
   }
 
-  const handleCreateTicket = async () => {
-    if (!assunto.trim() || !descricao.trim()) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('tickets').insert({ user_id: user.id, assunto, descricao })
-    setAssunto('')
-    setDescricao('')
-    setShowForm(false)
-    loadTickets()
+  const handleCreateTicket = () => {
+    if (!assunto.trim() || !descricao.trim() || !userId) return
+    createTicket.mutate({ user_id: userId, assunto: assunto.trim(), descricao: descricao.trim() }, {
+      onSuccess: () => {
+        setAssunto('')
+        setDescricao('')
+        setShowForm(false)
+      },
+    })
   }
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedTicket) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('ticket_messages').insert({ ticket_id: selectedTicket.id, user_id: user.id, mensagem: newMessage })
-    setNewMessage('')
-    loadMessages(selectedTicket.id)
-    loadTickets()
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !selectedTicket || !userId) return
+    sendMessage.mutate({ ticket_id: selectedTicket.id, user_id: userId, mensagem: newMessage.trim() }, {
+      onSuccess: () => setNewMessage(''),
+    })
   }
 
   if (selectedTicket) {
@@ -90,11 +71,11 @@ export default function Tickets() {
               <p className="text-xs text-zinc-500">Aguardando resposta do suporte.</p>
             </div>
           )}
-          {messages.map(m => (
-            <div key={m.id} className={`flex gap-2.5 ${(m as any).profiles?.role === 'admin' ? 'flex-row-reverse' : ''}`}>
-              <div className={`bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-3.5 max-w-[85%] ${(m as any).profiles?.role === 'admin' ? 'bg-orange-500/5 border-orange-500/20' : ''}`}>
+          {messages.map((m: any) => (
+            <div key={m.id} className={`flex gap-2.5 ${m.profiles?.role === 'admin' ? 'flex-row-reverse' : ''}`}>
+              <div className={`bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-3.5 max-w-[85%] ${m.profiles?.role === 'admin' ? 'bg-orange-500/5 border-orange-500/20' : ''}`}>
                 <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 mb-1">
-                  <User className="w-2.5 h-2.5" /> {(m as any).profiles?.nome || 'Usuário'}
+                  <User className="w-2.5 h-2.5" /> {m.profiles?.nome || 'Usuário'}
                 </div>
                 <p className="text-xs text-zinc-200">{m.mensagem}</p>
               </div>
@@ -106,7 +87,7 @@ export default function Tickets() {
           <div className="flex gap-2">
             <input value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Digite sua mensagem..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
-            <button onClick={handleSendMessage} disabled={!newMessage.trim()}
+            <button onClick={handleSendMessage} disabled={!newMessage.trim() || sendMessage.isPending}
               className="bg-orange-500 text-black p-3 rounded-xl disabled:bg-zinc-800 disabled:text-zinc-600 transition-all">
               <Send className="w-4 h-4" />
             </button>
@@ -133,19 +114,19 @@ export default function Tickets() {
             placeholder="Descreva sua dúvida..." rows={4}
             className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600 resize-none" />
           <div className="flex gap-3">
-            <button onClick={handleCreateTicket} className="flex-1 bg-orange-500 hover:bg-orange-600 text-black font-extrabold py-3 rounded-xl transition-all">Abrir Ticket</button>
+            <button onClick={handleCreateTicket} disabled={createTicket.isPending} className="flex-1 bg-orange-500 hover:bg-orange-600 text-black font-extrabold py-3 rounded-xl transition-all">Abrir Ticket</button>
             <button onClick={() => setShowForm(false)} className="px-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 rounded-xl transition-all"><X className="w-4 h-4" /></button>
           </div>
         </div>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <LoadingSkeleton variant="list" lines={4} />
       ) : tickets.length === 0 ? (
         <EmptyState icon={HelpCircle} title="Nenhum ticket" description="Crie um ticket para entrar em contato com o suporte." />
       ) : (
         <div className="space-y-2.5">
-          {tickets.map(t => (
+          {tickets.map((t: any) => (
             <div key={t.id} onClick={() => openTicket(t)} className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 cursor-pointer hover:border-zinc-700/80 transition-all">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">

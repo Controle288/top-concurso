@@ -1,62 +1,48 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import type { Resumo } from '@/types'
+import { useState } from 'react'
+import { useAuth } from '@/lib/AuthContext'
+import { useResumos, useSalvarResumo, useDeletarResumo } from '@/lib/queries/useResumos'
 import { BookOpen, Plus, Edit3, Trash2, Save, X } from 'lucide-react'
 import SectionHeader from '../shared/SectionHeader'
 import EmptyState from '../shared/EmptyState'
 import LoadingSkeleton from '../shared/LoadingSkeleton'
 
 export default function Resumos() {
-  const [resumos, setResumos] = useState<Resumo[]>([])
+  const { session } = useAuth()
+  const userId = session?.user?.id
+  const { data: resumos = [], isLoading } = useResumos(userId)
+  const salvarResumo = useSalvarResumo()
+  const deletarResumo = useDeletarResumo()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [titulo, setTitulo] = useState('')
   const [conteudo, setConteudo] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
 
-  const loadResumos = () => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      supabase.from('resumos').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }).then(({ data }) => {
-        if (data) setResumos(data)
-        setLoading(false)
-      })
-    })
+  const handleSave = () => {
+    if (!titulo.trim() || !conteudo.trim() || !userId) return
+    salvarResumo.mutate(
+      editingId
+        ? { id: editingId, user_id: userId, titulo: titulo.trim(), conteudo: conteudo.trim(), updated_at: new Date().toISOString() }
+        : { user_id: userId, titulo: titulo.trim(), conteudo: conteudo.trim() },
+      {
+        onSuccess: () => {
+          setTitulo('')
+          setConteudo('')
+          setEditingId(null)
+          setShowForm(false)
+        },
+      }
+    )
   }
 
-  useEffect(() => { loadResumos() }, [])
-
-  const handleSave = async () => {
-    if (!titulo.trim() || !conteudo.trim()) return
-    setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    if (editingId) {
-      await supabase.from('resumos').update({ titulo, conteudo, updated_at: new Date().toISOString() }).eq('id', editingId)
-    } else {
-      await supabase.from('resumos').insert({ user_id: user.id, titulo, conteudo })
-    }
-
-    setTitulo('')
-    setConteudo('')
-    setEditingId(null)
-    setShowForm(false)
-    setSaving(false)
-    loadResumos()
-  }
-
-  const handleEdit = (r: Resumo) => {
+  const handleEdit = (r: any) => {
     setTitulo(r.titulo)
     setConteudo(r.conteudo)
     setEditingId(r.id)
     setShowForm(true)
   }
 
-  const handleDelete = async (id: string) => {
-    await supabase.from('resumos').delete().eq('id', id)
-    loadResumos()
+  const handleDelete = (id: string) => {
+    deletarResumo.mutate(id)
   }
 
   const handleCancel = () => {
@@ -83,9 +69,9 @@ export default function Resumos() {
             placeholder="Escreva seu resumo aqui..." rows={8}
             className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600 resize-none leading-relaxed" />
           <div className="flex gap-3">
-            <button onClick={handleSave} disabled={saving}
+            <button onClick={handleSave} disabled={salvarResumo.isPending}
               className="flex-1 bg-orange-500 hover:bg-orange-600 text-black font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 transition-all">
-              <Save className="w-4 h-4" /> {saving ? 'Salvando...' : 'Salvar Resumo'}
+              <Save className="w-4 h-4" /> {salvarResumo.isPending ? 'Salvando...' : 'Salvar Resumo'}
             </button>
             <button onClick={handleCancel} className="px-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 rounded-xl flex items-center justify-center transition-all">
               <X className="w-4 h-4" />
@@ -94,13 +80,13 @@ export default function Resumos() {
         </div>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <LoadingSkeleton variant="list" lines={4} />
       ) : resumos.length === 0 && !showForm ? (
         <EmptyState icon={BookOpen} title="Nenhum resumo ainda" description="Clique em 'Novo Resumo' para criar seu primeiro resumo." />
       ) : (
         <div className="space-y-3">
-          {resumos.map((r) => (
+          {resumos.map((r: any) => (
             <div key={r.id} className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-sm font-bold text-zinc-100">{r.titulo}</h3>

@@ -1,31 +1,32 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users, BookOpen, HelpCircle, MessageSquare, Ticket, FileText, Film, LogOut, TrendingUp, Briefcase, GraduationCap } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { Shield, Users, BookOpen, HelpCircle, MessageSquare, Ticket, FileText, Film, LogOut, TrendingUp, Briefcase } from 'lucide-react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ users: 0, concursos: 0, questoes: 0, aulas: 0, pdfs: 0, tickets: 0 });
 
-  useEffect(() => {
-    Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }),
-      supabase.from('concursos').select('id', { count: 'exact', head: true }),
-      supabase.from('questoes').select('id', { count: 'exact', head: true }),
-      supabase.from('aulas').select('id', { count: 'exact', head: true }),
-      supabase.from('pdfs').select('id', { count: 'exact', head: true }),
-      supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('status', 'aberto'),
-    ]).then(([users, concursos, questoes, aulas, pdfs, tickets]) => {
-      setStats({
+  const { data: stats = { users: 0, concursos: 0, questoes: 0, aulas: 0, pdfs: 0, tickets: 0 } } = useQuery({
+    queryKey: ['admin_stats'],
+    queryFn: async () => {
+      const [users, concursos, questoes, aulas, pdfs, tickets] = await Promise.all([
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('concursos').select('id', { count: 'exact', head: true }),
+        supabase.from('questoes').select('id', { count: 'exact', head: true }),
+        supabase.from('aulas').select('id', { count: 'exact', head: true }),
+        supabase.from('pdfs').select('id', { count: 'exact', head: true }),
+        supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('status', 'aberto'),
+      ]);
+      return {
         users: users.count || 0,
         concursos: concursos.count || 0,
         questoes: questoes.count || 0,
         aulas: aulas.count || 0,
         pdfs: pdfs.count || 0,
         tickets: tickets.count || 0,
-      });
-    });
-  }, []);
+      };
+    },
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

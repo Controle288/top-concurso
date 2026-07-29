@@ -1,46 +1,47 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
+import { useUpdateProfile } from '@/lib/queries/usePerfil';
+import { useAulasConcluidasList } from '@/lib/queries/useAulas';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import { User, Save, Mail, Shield, LogOut, ArrowLeft, Calendar, CheckCircle, Film, Brain, Crown } from 'lucide-react';
-import type { Profile } from '@/types';
 
 export default function Perfil() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const { session, profile } = useAuth();
+  const userId = session?.user?.id;
+  const { data: aulasConcluidas } = useAulasConcluidasList(userId);
+  const updateProfile = useUpdateProfile();
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [stats, setStats] = useState({ questoes: 0, aulas: 0, cards: 0 });
+  const [stats, setStats] = useState({ questoes: 0, cards: 0 });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setEmail(user.email || '');
-        supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
-          if (data) { setProfile(data); setNome(data.nome); }
-        });
-      }
-    });
+    if (profile) {
+      setNome(profile.nome);
+    }
+  }, [profile]);
 
+  useEffect(() => {
+    if (session?.user) {
+      setEmail(session.user.email || '');
+    }
     const q = localStorage.getItem('topconcurso_questoes');
     const qTotal = q ? JSON.parse(q).length : 0;
-    supabase.from('aulas_concluidas').select('*', { count: 'exact', head: true }).then(({ count }) => {
-      const c = localStorage.getItem('topconcurso_flashcards');
-      const cardsTotal = c ? JSON.parse(c).length : 0;
-      setStats({ questoes: qTotal, aulas: count || 0, cards: cardsTotal });
-    });
-  }, []);
+    const c = localStorage.getItem('topconcurso_flashcards');
+    const cardsTotal = c ? JSON.parse(c).length : 0;
+    setStats({ questoes: qTotal, cards: cardsTotal });
+  }, [session]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!profile || !nome.trim()) return;
-    setSaving(true);
-    const { error } = await supabase.from('profiles').update({ nome: nome.trim() }).eq('id', profile.id);
-    setSaving(false);
-    if (!error) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }
+    updateProfile.mutate({ id: profile.id, nome: nome.trim() }, {
+      onSuccess: () => {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      },
+    });
   };
 
   const handleLogout = async () => {
@@ -128,9 +129,9 @@ export default function Perfil() {
           <p className="text-sm text-zinc-300 px-1 capitalize">{profile?.role === 'admin' ? 'Administrador' : profile?.assinatura_ativa ? 'Aluno Premium' : 'Aluno (Gratuito)'}</p>
         </div>
 
-        <button onClick={handleSave} disabled={saving || !nome.trim()}
+        <button onClick={handleSave} disabled={updateProfile.isPending || !nome.trim()}
           className="w-full bg-orange-500 text-black font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 disabled:bg-zinc-800 disabled:text-zinc-600 transition-all">
-          {saved ? <><CheckCircle className="w-4 h-4" /> Salvo!</> : <><Save className="w-4 h-4" /> {saving ? 'Salvando...' : 'Salvar'}</>}
+          {saved ? <><CheckCircle className="w-4 h-4" /> Salvo!</> : <><Save className="w-4 h-4" /> {updateProfile.isPending ? 'Salvando...' : 'Salvar'}</>}
         </button>
       </div>
 
@@ -146,7 +147,7 @@ export default function Perfil() {
           </div>
           <div className="bg-zinc-800/50 rounded-xl p-3 text-center">
             <Film className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
-            <span className="text-lg font-black text-white font-mono">{stats.aulas}</span>
+            <span className="text-lg font-black text-white font-mono">{aulasConcluidas?.length || 0}</span>
             <p className="text-[9px] text-zinc-500 uppercase font-bold">Aulas</p>
           </div>
           <div className="bg-zinc-800/50 rounded-xl p-3 text-center">

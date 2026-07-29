@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Concurso, Aula } from '@/types'
+import { useAuth } from '@/lib/AuthContext'
+import { useFiltrosConcursos } from '@/lib/queries/useConcursos'
+import { useAulasPorConcurso } from '@/lib/queries/useAulas'
+import type { Aula } from '@/types'
 import { Sparkles, ArrowLeft, Clock, BookOpen, Plus, X } from 'lucide-react'
 import { isBusinessDay } from '@/lib/businessDays'
 
@@ -10,20 +13,16 @@ interface GerarCronogramaProps {
 }
 
 export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaProps) {
-  const [concursos, setConcursos] = useState<Concurso[]>([])
+  const { session } = useAuth()
+  const { data: concursos = [] } = useFiltrosConcursos()
   const [concursoId, setConcursoId] = useState('')
+  const { data: aulasData = [] } = useAulasPorConcurso(concursoId)
   const [horasDia, setHorasDia] = useState('3')
   const [turno, setTurno] = useState<'manha' | 'tarde' | 'noite' | 'integral'>('integral')
   const [gerando, setGerando] = useState(false)
   const [diasPausa, setDiasPausa] = useState<string[]>([])
   const [novaPausa, setNovaPausa] = useState('')
   const [incluirRevisao, setIncluirRevisao] = useState(true)
-
-  useEffect(() => {
-    supabase.from('concursos').select('*').order('titulo').then(({ data }) => {
-      if (data) setConcursos(data)
-    })
-  }, [])
 
   const addPauseDay = () => {
     if (novaPausa && !diasPausa.includes(novaPausa)) {
@@ -37,25 +36,19 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
   }
 
   const handleGerar = async () => {
-    if (!concursoId) return
+    if (!concursoId || !session?.user) return
     setGerando(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
     const concurso = concursos.find(c => c.id === concursoId)
-    if (!concurso) return
+    if (!concurso) { setGerando(false); return }
 
-    const { data: aulasData } = await supabase.from('aulas').select('*').eq('concurso_id', concursoId).order('created_at')
-    if (!aulasData || aulasData.length === 0) {
-      setGerando(false)
-      return
-    }
+    const aulas = aulasData
+    if (aulas.length === 0) { setGerando(false); return }
 
     const horasPorDia = parseFloat(horasDia)
 
     const { data: cronograma, error } = await supabase.from('cronogramas').insert({
-      user_id: user.id,
+      user_id: session.user.id,
       concurso_id: concursoId,
       titulo: `Cronograma - ${concurso.titulo}`,
       horas_dia: horasPorDia,
@@ -64,18 +57,14 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
       ativo: true,
     }).select().single()
 
-    if (error || !cronograma) {
-      setGerando(false)
-      return
-    }
+    if (error || !cronograma) { setGerando(false); return }
 
-    let aulasRestantes = [...aulasData]
+    let aulasRestantes = [...aulas]
     let diaAtual = new Date()
     let diaIndex = 0
 
-    // Calculate total study days and add revision days
-    const totalAulas = aulasData.length
-    const aulasPorDia = Math.floor((horasPorDia * 60) / 45) // avg 45min per aula
+    const totalAulas = aulas.length
+    const aulasPorDia = Math.floor((horasPorDia * 60) / 45)
     const diasEstudo = Math.ceil(totalAulas / Math.max(aulasPorDia, 1))
     const revisoesPorSemana = incluirRevisao ? Math.ceil(diasEstudo / 5) : 0
     let revisoesAdicionadas = 0
@@ -86,7 +75,6 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
 
       const dataStr = diaData.toISOString().split('T')[0]
 
-      // Skip weekends, holidays, and user-defined pause days
       if (!isBusinessDay(diaData) || diasPausa.includes(dataStr)) {
         diaIndex++
         continue
@@ -113,7 +101,6 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
       diaIndex++
     }
 
-    // Add revision days periodically
     if (revisoesPorSemana > 0) {
       let diaRevisao = new Date(diaAtual)
       let revisaoIndex = 0
@@ -221,7 +208,6 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
           </div>
         </div>
 
-        {/* Dias de Pausa */}
         <div className="space-y-2">
           <label className="text-xs text-zinc-400 font-bold uppercase tracking-wider">Dias de Pausa (opcional)</label>
           <div className="flex gap-2">
@@ -245,7 +231,6 @@ export default function GerarCronograma({ onVoltar, onGerado }: GerarCronogramaP
           <p className="text-[10px] text-zinc-600">Feriados nacionais e finais de semana são pulados automaticamente.</p>
         </div>
 
-        {/* Incluir Revisões */}
         <label className="flex items-center gap-3 cursor-pointer select-none">
           <div className={`w-10 h-5 rounded-full transition-all duration-200 relative ${
             incluirRevisao ? 'bg-orange-500' : 'bg-zinc-800'

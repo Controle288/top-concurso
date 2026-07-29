@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, memo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
+import { useFlashcards, useSyncFlashcards } from '@/lib/queries/useFlashcards'
 import { Brain, RotateCcw, Check, X, Plus, Trash2, Sparkles, Download, Upload } from 'lucide-react'
 import SectionHeader from '../shared/SectionHeader'
 
@@ -53,57 +54,48 @@ const CardItem = memo(function CardItem({
 
 export default function RevisaoEspacada() {
   const { session } = useAuth()
+  const userId = session?.user?.id
+  const { data: supabaseCards = [], isLoading } = useFlashcards(userId)
+  const syncFlashcards = useSyncFlashcards()
   const [cards, setCards] = useState<FlashCard[]>([])
   const [showForm, setShowForm] = useState(false)
   const [front, setFront] = useState('')
   const [back, setBack] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showAnswer, setShowAnswer] = useState(false)
-  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     if (session?.user) {
-      loadFromSupabase()
+      if (supabaseCards.length > 0) {
+        setCards(supabaseCards)
+      } else {
+        const saved = localStorage.getItem('topconcurso_flashcards')
+        if (saved) {
+          const localCards = JSON.parse(saved)
+          setCards(localCards)
+          syncFlashcards.mutate(localCards)
+        }
+      }
     } else {
       const saved = localStorage.getItem('topconcurso_flashcards')
       if (saved) setCards(JSON.parse(saved))
     }
-  }, [session])
-
-  const loadFromSupabase = async () => {
-    const { data } = await supabase
-      .from('flashcards')
-      .select('*')
-      .eq('user_id', session?.user?.id)
-      .order('created_at', { ascending: false })
-    if (data && data.length > 0) {
-      setCards(data)
-    } else {
-      const saved = localStorage.getItem('topconcurso_flashcards')
-      if (saved) {
-        const localCards = JSON.parse(saved)
-        setCards(localCards)
-        syncToSupabase(localCards)
-      }
-    }
-  }
-
-  const syncToSupabase = async (cardsToSync: FlashCard[]) => {
-    if (!session?.user) return
-    setSyncing(true)
-    const { error } = await supabase.from('flashcards').upsert(
-      cardsToSync.map(c => ({ ...c, user_id: session.user.id })),
-      { onConflict: 'id' }
-    )
-    if (error) console.error('Sync error:', error)
-    setSyncing(false)
-  }
+  }, [session, supabaseCards])
 
   const save = useCallback((newCards: FlashCard[]) => {
     setCards(newCards)
     localStorage.setItem('topconcurso_flashcards', JSON.stringify(newCards))
-    syncToSupabase(newCards)
-  }, [session])
+    if (session?.user) {
+      syncFlashcards.mutate(newCards.map(c => ({
+        id: c.id,
+        user_id: session.user.id,
+        front: c.front,
+        back: c.back,
+        box: c.box,
+        next_review: c.next_review,
+      })))
+    }
+  }, [session, syncFlashcards])
 
   const dueCards = cards
     .filter(c => new Date(c.next_review) <= new Date())
@@ -200,7 +192,7 @@ export default function RevisaoEspacada() {
       <div className="flex items-start justify-between gap-2">
         <SectionHeader icon={Brain} title="Flashcards" subtitle="Revisão espaçada" />
         <div className="flex items-center gap-2 shrink-0 mt-1">
-          {syncing && <span className="text-[10px] text-zinc-500">Sincronizando...</span>}
+          {syncFlashcards.isPending && <span className="text-[10px] text-zinc-500">Sincronizando...</span>}
           <button onClick={exportCards} className="bg-zinc-800 text-zinc-400 p-2.5 rounded-full hover:bg-zinc-700 transition-all" title="Exportar">
             <Download className="w-4 h-4" />
           </button>

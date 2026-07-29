@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
+import { usePdfs } from '@/lib/queries/usePdfs';
 import type { Pdf } from '@/types';
 import { FileText, Headphones, BookOpen, ChevronRight, Download, ExternalLink, FileCheck, X } from 'lucide-react';
 import SectionHeader from '../shared/SectionHeader';
@@ -7,18 +7,10 @@ import EmptyState from '../shared/EmptyState';
 import SearchBar from '../shared/SearchBar';
 
 export default function PdfLibrary() {
-  const [pdfs, setPdfs] = useState<Pdf[]>([]);
+  const { data: pdfs = [], isLoading } = usePdfs();
   const [filter, setFilter] = useState<string>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPdf, setSelectedPdf] = useState<Pdf | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.from('pdfs').select('*').order('created_at', { ascending: false }).then(({ data }) => {
-      if (data) setPdfs(data);
-      setLoading(false);
-    });
-  }, []);
 
   const filteredPdfs = pdfs.filter(p => {
     const matchesFilter = filter === 'Todos' || p.tipo === filter;
@@ -43,7 +35,7 @@ export default function PdfLibrary() {
         ))}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="skeleton h-24 w-full rounded-2xl" />)}
         </div>
