@@ -1,55 +1,19 @@
-import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/AuthContext'
+import { useCurso, useCursoModulos, useMatriculaCurso, useMatricularCurso } from '@/lib/queries/useCursos'
 import { ArrowLeft, Clock, User, Play, CheckCircle, Lock, GraduationCap } from 'lucide-react'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
-import type { Curso, CursoModulo, CursoAula } from '@/types'
 
 export default function CursoDetalhe() {
   const { id } = useParams()
-  const [curso, setCurso] = useState<Curso | null>(null)
-  const [modulos, setModulos] = useState<CursoModulo[]>([])
-  const [matriculado, setMatriculado] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const { session } = useAuth()
+  const userId = session?.user?.id
+  const { data: curso, isLoading: loadingCurso } = useCurso(id || '')
+  const { data: modulos = [] } = useCursoModulos(id || '')
+  const { data: matriculado = false } = useMatriculaCurso(id || '', userId)
+  const matricular = useMatricularCurso()
 
-  useEffect(() => {
-    if (!id) return
-    const userPromise = supabase.auth.getUser()
-    Promise.all([
-      supabase.from('cursos').select('*').eq('id', id).single(),
-      supabase.from('curso_modulos').select('*').eq('curso_id', id).order('ordem'),
-      userPromise.then(({ data }) =>
-        supabase.from('curso_matriculas').select('id').eq('curso_id', id).eq('user_id', data.user?.id || '').maybeSingle()
-      ).then(r => r.data),
-    ]).then(([cursoRes, modulosRes, matricula]) => {
-      if (cursoRes.data) setCurso(cursoRes.data)
-      if (modulosRes.data) setModulos(modulosRes.data)
-      setMatriculado(!!matricula)
-      setLoading(false)
-    })
-  }, [id])
-
-  useEffect(() => {
-    if (!id || modulos.length === 0) return
-    const moduloIds = modulos.map(m => m.id)
-    supabase.from('curso_aulas').select('*').in('modulo_id', moduloIds).order('ordem').then(({ data }) => {
-      if (!data) return
-      setModulos(prev => prev.map(m => ({
-        ...m,
-        aulas: data.filter(a => a.modulo_id === m.id),
-      })))
-    })
-  }, [id, modulos.length])
-
-  const matricular = async () => {
-    if (!id) return
-    const user = (await supabase.auth.getUser()).data.user
-    if (!user) return
-    await supabase.from('curso_matriculas').insert({ curso_id: id, user_id: user.id })
-    setMatriculado(true)
-  }
-
-  if (loading) return <LoadingSkeleton />
+  if (loadingCurso) return <LoadingSkeleton />
 
   if (!curso) return (
     <div className="flex flex-col items-center justify-center py-20 text-zinc-500 gap-4">
@@ -78,12 +42,11 @@ export default function CursoDetalhe() {
             <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />{Math.round(totalMinutos / 60)}h ({totalAulas} aulas)</span>
             {curso.preco === 0 && <span className="text-emerald-400 font-bold">Grátis</span>}
           </div>
-          {!matriculado && (
-            <button onClick={matricular} className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm rounded-xl transition-all">
-              Matricular-se Grátis
+          {!matriculado ? (
+            <button onClick={() => id && userId && matricular.mutate({ cursoId: id, userId })} disabled={matricular.isPending} className="px-6 py-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all">
+              {matricular.isPending ? 'Matriculando...' : 'Matricular-se Grátis'}
             </button>
-          )}
-          {matriculado && (
+          ) : (
             <span className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 text-sm font-bold rounded-xl border border-emerald-500/20">
               <CheckCircle className="w-4 h-4" /> Matriculado
             </span>

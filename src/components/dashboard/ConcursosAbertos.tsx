@@ -1,18 +1,11 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Concurso } from '@/types';
-import { Briefcase, Users, Calendar, TrendingUp } from 'lucide-react';
+import { useConcursosAbertos } from '@/lib/queries/useConcursos'
+import { Briefcase, Users, Calendar, TrendingUp } from 'lucide-react'
+import type { Concurso } from '@/types'
 
 export default function ConcursosAbertos() {
-  const [concursos, setConcursos] = useState<Concurso[]>([]);
+  const { data: concursos = [] } = useConcursosAbertos()
 
-  useEffect(() => {
-    supabase.from('concursos').select('*, bancas(nome)').order('data_prova', { ascending: true }).limit(10).then(({ data }) => {
-      if (data) setConcursos(data);
-    });
-  }, []);
-
-  if (concursos.length === 0) return null;
+  if (concursos.length === 0) return null
 
   return (
     <div className="space-y-3">
@@ -21,10 +14,10 @@ export default function ConcursosAbertos() {
         Concursos Abertos & Previstos
       </h2>
       <div className="space-y-2">
-        {concursos.map((c) => {
+        {concursos.map((c: Concurso) => {
           const chance = c.vagas > 0 && c.inscritos_estimados > 0
             ? ((c.vagas / c.inscritos_estimados) * 100).toFixed(2)
-            : null;
+            : null
           return (
             <div key={c.id} className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-800/80">
               <div className="flex items-start justify-between gap-2">
@@ -55,9 +48,9 @@ export default function ConcursosAbertos() {
                 )}
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
+  )
 }

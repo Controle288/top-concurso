@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
-import { GraduationCap, Clock, User, Search, Filter } from 'lucide-react'
+import { useCursos } from '@/lib/queries/useCursos'
+import { GraduationCap, Clock, User, Search } from 'lucide-react'
 import SectionHeader from '@/components/shared/SectionHeader'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
 import EmptyState from '@/components/shared/EmptyState'
@@ -23,25 +23,14 @@ const categoriaCores: Record<string, string> = {
 }
 
 export default function Cursos() {
-  const [cursos, setCursos] = useState<Curso[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
+  const { data: cursos = [], isLoading } = useCursos()
 
-  const load = async () => {
-    let query = supabase.from('cursos').select('*').eq('ativo', true).order('created_at', { ascending: false })
-    if (filtroCategoria) query = query.eq('categoria', filtroCategoria)
-    const { data } = await query
-    if (data) setCursos(data)
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [filtroCategoria])
-
-  const filtrados = cursos.filter(c =>
+  const filtrados = cursos.filter((c: Curso) =>
     c.titulo.toLowerCase().includes(search.toLowerCase()) ||
     c.instrutor.toLowerCase().includes(search.toLowerCase())
-  )
+  ).filter((c: Curso) => !filtroCategoria || c.categoria === filtroCategoria)
 
   return (
     <div className="flex flex-col gap-5 py-4">
@@ -74,7 +63,7 @@ export default function Cursos() {
         </select>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <LoadingSkeleton />
       ) : filtrados.length === 0 ? (
         <EmptyState icon={GraduationCap} title="Nenhum curso encontrado" description="Volte mais tarde para novos cursos" />

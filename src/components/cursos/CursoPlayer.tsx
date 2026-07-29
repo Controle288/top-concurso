@@ -1,54 +1,28 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/AuthContext'
+import { useCurso, useCursoModulos, useCursoAula, useCursoProgresso, useMarcarProgresso } from '@/lib/queries/useCursos'
 import { ArrowLeft, CheckCircle, Play, GraduationCap } from 'lucide-react'
 import LoadingSkeleton from '@/components/shared/LoadingSkeleton'
-import type { Curso, CursoModulo, CursoAula } from '@/types'
 
 export default function CursoPlayer() {
   const { id, aulaId } = useParams()
-  const [curso, setCurso] = useState<Curso | null>(null)
-  const [modulos, setModulos] = useState<CursoModulo[]>([])
-  const [aula, setAula] = useState<CursoAula | null>(null)
-  const [concluido, setConcluido] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const { session } = useAuth()
+  const userId = session?.user?.id
+
+  const { data: curso, isLoading: loadingCurso } = useCurso(id || '')
+  const { data: modulos = [] } = useCursoModulos(id || '')
+  const { data: aula, isLoading: loadingAula } = useCursoAula(aulaId || '')
+  const { data: concluido = false } = useCursoProgresso(aulaId || '', userId)
+  const marcarProgresso = useMarcarProgresso()
 
   useEffect(() => {
-    if (!id || !aulaId) return
-    const userPromise = supabase.auth.getUser()
-    Promise.all([
-      supabase.from('cursos').select('*').eq('id', id).single(),
-      supabase.from('curso_modulos').select('*').eq('curso_id', id).order('ordem'),
-      supabase.from('curso_aulas').select('*').eq('id', aulaId).single(),
-      userPromise.then(({ data }) =>
-        supabase.from('curso_progresso').select('id').eq('aula_id', aulaId).eq('user_id', data.user?.id || '').maybeSingle()
-      ).then(r => r.data),
-    ]).then(([cursoRes, modulosRes, aulaRes, progresso]) => {
-      if (cursoRes.data) setCurso(cursoRes.data)
-      if (aulaRes.data) setAula(aulaRes.data)
-      setConcluido(!!progresso)
-      if (modulosRes.data) {
-        const moduloIds = modulosRes.data.map(m => m.id)
-        supabase.from('curso_aulas').select('*').in('modulo_id', moduloIds).order('ordem').then(({ data }) => {
-          if (data) {
-            setModulos(modulosRes.data!.map(m => ({ ...m, aulas: data.filter(a => a.modulo_id === m.id) })))
-          }
-        })
-      }
-      setLoading(false)
-    })
-  }, [id, aulaId])
+    if (aula && !concluido && userId && aulaId) {
+      marcarProgresso.mutate({ aulaId, userId })
+    }
+  }, [aula?.id])
 
-  const marcarConcluido = async () => {
-    if (!aulaId) return
-    const user = (await supabase.auth.getUser()).data.user
-    if (!user) return
-    if (concluido) return
-    await supabase.from('curso_progresso').insert({ aula_id: aulaId, user_id: user.id })
-    setConcluido(true)
-  }
-
-  if (loading) return <LoadingSkeleton />
+  if (loadingCurso || loadingAula) return <LoadingSkeleton />
 
   if (!curso || !aula) return (
     <div className="flex flex-col items-center justify-center py-20 text-zinc-500 gap-4">
@@ -58,13 +32,8 @@ export default function CursoPlayer() {
     </div>
   )
 
-  useEffect(() => {
-    if (!aula || concluido) return
-    marcarConcluido()
-  }, [aula])
-
   const todasAulas = modulos.flatMap(m => m.aulas || [])
-  const idx = todasAulas.findIndex(a => a.id === aulaId)
+  const idx = todasAulas.findIndex((a: { id: string }) => a.id === aulaId)
   const prevAula = idx > 0 ? todasAulas[idx - 1] : null
   const nextAula = idx < todasAulas.length - 1 ? todasAulas[idx + 1] : null
 
