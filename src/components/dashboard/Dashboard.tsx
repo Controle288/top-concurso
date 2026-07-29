@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback } from 'react'
+import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Sparkles, Flame, Check, Clock, BookOpen, HelpCircle,
@@ -74,6 +74,8 @@ export default function Dashboard() {
   const [pushLoading, setPushLoading] = useState(false)
   const [tasksExpanded, setTasksExpanded] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const avatarRef = useRef<HTMLButtonElement>(null)
 
   const { data: tasks = [], isLoading: tasksLoading } = useTarefasDiarias(userId)
   const { data: questStats = { total: 0, correct: 0, rate: 0 } } = useQuestStats(userId)
@@ -93,6 +95,24 @@ export default function Dashboard() {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowMenu(false) }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
+  }, [showMenu])
+
+  useEffect(() => {
+    if (!showMenu) return
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        avatarRef.current && !avatarRef.current.contains(e.target as Node)
+      ) {
+        setShowMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [showMenu])
 
   const handleRefresh = async () => {
@@ -157,28 +177,25 @@ export default function Dashboard() {
               <Flame className="w-4 h-4 text-orange-500 fill-orange-500/30" />
               <span className="text-xs font-bold text-orange-500">7 DIAS</span>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="w-8 h-8 bg-zinc-900/80 rounded-xl border border-zinc-800/60 flex items-center justify-center text-zinc-500 hover:text-orange-500 hover:border-orange-500/30 transition-all">
+            <button ref={avatarRef} onClick={() => setShowMenu(!showMenu)} className="w-8 h-8 bg-zinc-900/80 rounded-xl border border-zinc-800/60 flex items-center justify-center text-zinc-500 hover:text-orange-500 hover:border-orange-500/30 transition-all">
               <User className="w-4 h-4" />
             </button>
             {showMenu && (
-              <>
-                <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
-                <div className="absolute top-full right-0 mt-2 w-48 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden animate-fadeIn" onClick={(e) => e.stopPropagation()}>
-                  <div className="p-3.5 border-b border-zinc-700/50">
-                    <p className="text-sm font-bold text-zinc-100 truncate">{profile?.nome || 'Usuário'}</p>
-                    <p className="text-[11px] text-zinc-500 font-medium mt-0.5">{profile?.role === 'admin' ? 'Administrador' : 'Aluno'}</p>
-                  </div>
-                  <div className="p-1.5">
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/perfil'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><User className="w-4 h-4" /> Perfil</button>
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/tickets'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><HelpCircle className="w-4 h-4" /> Suporte</button>
-                    {profile?.role === 'admin' && (
-                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); navigate('/admin'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><Zap className="w-4 h-4 text-orange-500" /> Painel Admin</button>
-                    )}
-                    <hr className="border-zinc-700/50 my-1" />
-                    <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 rounded-xl transition-all"><LogOut className="w-4 h-4" /> Sair</button>
-                  </div>
+              <div ref={menuRef} className="absolute top-full right-0 mt-2 w-48 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden animate-fadeIn">
+                <div className="p-3.5 border-b border-zinc-700/50">
+                  <p className="text-sm font-bold text-zinc-100 truncate">{profile?.nome || 'Usuário'}</p>
+                  <p className="text-[11px] text-zinc-500 font-medium mt-0.5">{profile?.role === 'admin' ? 'Administrador' : 'Aluno'}</p>
                 </div>
-              </>
+                <div className="p-1.5">
+                  <button onClick={() => { setShowMenu(false); navigate('/perfil'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><User className="w-4 h-4" /> Perfil</button>
+                  <button onClick={() => { setShowMenu(false); navigate('/tickets'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><HelpCircle className="w-4 h-4" /> Suporte</button>
+                  {profile?.role === 'admin' && (
+                    <button onClick={() => { setShowMenu(false); navigate('/admin'); }} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-all"><Zap className="w-4 h-4 text-orange-500" /> Painel Admin</button>
+                  )}
+                  <hr className="border-zinc-700/50 my-1" />
+                  <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 rounded-xl transition-all"><LogOut className="w-4 h-4" /> Sair</button>
+                </div>
+              </div>
             )}
           </div>
         </div>
