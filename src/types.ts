@@ -63,18 +63,31 @@ export interface Pdf {
   created_at: string;
 }
 
+export interface Materia {
+  id: string;
+  concurso_id: string;
+  disciplina_id: string;
+  nome: string;
+  ordem: number;
+  created_at: string;
+  aulas?: Aula[];
+  disciplinas?: { nome: string };
+}
+
 export interface Aula {
   id: string;
   titulo: string;
   descricao?: string;
   concurso_id: string;
   disciplina_id?: string;
+  materia_id?: string;
   youtube_url: string;
   youtube_id?: string;
   duracao_minutos: number;
   instrutor?: string;
   thumbnail_url?: string;
   created_at: string;
+  materias?: { nome: string };
 }
 
 export interface Questao {

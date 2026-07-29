@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { useMaterias } from '@/lib/queries/useMaterias';
 import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Film, Search, Download, Youtube, CheckSquare, Square, Image } from 'lucide-react';
 import { searchYouTubeVideos, searchYouTubePlaylists, getPlaylistVideos, searchChannelVideos, extractYoutubeId } from '@/lib/youtube';
 import type { Aula, Concurso, Disciplina } from '@/types';
@@ -35,13 +36,14 @@ export default function AdminAulas() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState({ titulo: '', descricao: '', concurso_id: '', disciplina_id: '', youtube_url: '', duracao_minutos: 0, instrutor: '', thumbnail_url: '' });
+  const [form, setForm] = useState({ titulo: '', descricao: '', concurso_id: '', disciplina_id: '', materia_id: '', youtube_url: '', duracao_minutos: 0, instrutor: '', thumbnail_url: '' });
 
   const [showImport, setShowImport] = useState(false);
   const [importTab, setImportTab] = useState<ImportTab>('videos');
   const [importQuery, setImportQuery] = useState('');
   const [importConcurso, setImportConcurso] = useState('');
   const [importDisciplina, setImportDisciplina] = useState('');
+  const [importMateria, setImportMateria] = useState('');
   const [importResults, setImportResults] = useState<ImportVideo[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -72,6 +74,8 @@ export default function AdminAulas() {
     enabled: !!form.concurso_id,
   });
 
+  const { data: materias = [] } = useMaterias(form.concurso_id);
+
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['aulas'] });
 
   const autoPreencherThumbnail = useCallback((url: string) => {
@@ -82,7 +86,7 @@ export default function AdminAulas() {
   }, []);
 
   const resetForm = () => {
-    setForm({ titulo: '', descricao: '', concurso_id: '', disciplina_id: '', youtube_url: '', duracao_minutos: 0, instrutor: '', thumbnail_url: '' });
+    setForm({ titulo: '', descricao: '', concurso_id: '', disciplina_id: '', materia_id: '', youtube_url: '', duracao_minutos: 0, instrutor: '', thumbnail_url: '' });
     setEditing(null);
     setShowForm(false);
   };
@@ -95,6 +99,7 @@ export default function AdminAulas() {
       youtube_id: youtubeId,
       thumbnail_url: form.thumbnail_url || (youtubeId ? getThumbnailUrl(youtubeId) : ''),
       disciplina_id: form.disciplina_id || null,
+      materia_id: form.materia_id || null,
     };
     if (editing) {
       const { error } = await supabase.from('aulas').update(payload).eq('id', editing);
@@ -110,7 +115,7 @@ export default function AdminAulas() {
   const handleEdit = (a: Aula) => {
     setForm({
       titulo: a.titulo, descricao: a.descricao || '', concurso_id: a.concurso_id || '',
-      disciplina_id: a.disciplina_id || '', youtube_url: a.youtube_url,
+      disciplina_id: a.disciplina_id || '', materia_id: a.materia_id || '', youtube_url: a.youtube_url,
       duracao_minutos: a.duracao_minutos, instrutor: a.instrutor || '', thumbnail_url: a.thumbnail_url || '',
     });
     setEditing(a.id);
@@ -163,6 +168,7 @@ export default function AdminAulas() {
       titulo: video.title,
       concurso_id: importConcurso,
       disciplina_id: importDisciplina || null,
+      materia_id: importMateria || null,
       youtube_url: `https://www.youtube.com/watch?v=${video.id}`,
       youtube_id: video.id,
       duracao_minutos: minutos || 0,
@@ -243,11 +249,18 @@ export default function AdminAulas() {
               <option value="">Sem concurso</option>
               {concursos.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
             </select>
-            <select value={form.disciplina_id} onChange={(e) => setForm({ ...form, disciplina_id: e.target.value })}
+            <select value={form.disciplina_id} onChange={(e) => { setForm({ ...form, disciplina_id: e.target.value, materia_id: '' })}}
               className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50">
               <option value="">Sem disciplina</option>
               {disciplinas.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
             </select>
+            {form.disciplina_id && (
+              <select value={form.materia_id} onChange={(e) => setForm({ ...form, materia_id: e.target.value })}
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50">
+                <option value="">Sem matéria</option>
+                {materias.filter(m => m.disciplina_id === form.disciplina_id).map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              </select>
+            )}
             <input type="number" value={form.duracao_minutos} onChange={(e) => setForm({ ...form, duracao_minutos: Number(e.target.value) })}
               placeholder="Duração (min)" className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50 placeholder-zinc-600" />
             <input value={form.instrutor} onChange={(e) => setForm({ ...form, instrutor: e.target.value })}
@@ -318,11 +331,18 @@ export default function AdminAulas() {
             <option value="">Selecione o concurso...</option>
             {concursos.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
           </select>
-          <select value={importDisciplina} onChange={(e) => setImportDisciplina(e.target.value)}
+          <select value={importDisciplina} onChange={(e) => { setImportDisciplina(e.target.value); setImportMateria(''); }}
             className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50">
             <option value="">Todas disciplinas</option>
             {disciplinas.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
           </select>
+          {importDisciplina && (
+            <select value={importMateria} onChange={(e) => setImportMateria(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 focus:outline-none focus:border-orange-500/50">
+              <option value="">Sem matéria</option>
+              {materias.filter(m => m.disciplina_id === importDisciplina).map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+          )}
           <div className="flex gap-2">
             <input value={importQuery} onChange={(e) => setImportQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}

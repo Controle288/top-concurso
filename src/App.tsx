@@ -20,6 +20,7 @@ const CursoDetalhe = lazy(() => import('./components/cursos/CursoDetalhe'))
 const CursoPlayer = lazy(() => import('./components/cursos/CursoPlayer'))
 const Resumos = lazy(() => import('./components/resumos/Resumos'))
 const CronogramaView = lazy(() => import('./components/cronograma/CronogramaView'))
+const ConcursoDetalhe = lazy(() => import('./components/concursos/ConcursoDetalhe'))
 const Forum = lazy(() => import('./components/forum/Forum'))
 const Tickets = lazy(() => import('./components/tickets/Tickets'))
 const Perfil = lazy(() => import('./components/perfil/Perfil'))
@@ -34,6 +35,7 @@ const AdminPDFs = lazy(() => import('./pages/admin/AdminPDFs'))
 const AdminForum = lazy(() => import('./pages/admin/AdminForum'))
 const AdminTickets = lazy(() => import('./pages/admin/AdminTicketsAdmin'))
 const AdminCursos = lazy(() => import('./pages/admin/AdminCursos'))
+const AdminMaterias = lazy(() => import('./pages/admin/AdminMaterias'))
 
 const fallback = (
   <div className="flex items-center justify-center py-20">
@@ -98,6 +100,7 @@ function AppContent() {
             <Route path="/perfil" element={<ErrorBoundary><Perfil /></ErrorBoundary>} />
             <Route path="/revisao" element={<ErrorBoundary><RevisaoEspacada /></ErrorBoundary>} />
             <Route path="/planos" element={<ErrorBoundary><Planos /></ErrorBoundary>} />
+            <Route path="/concurso/:id" element={<ErrorBoundary><ConcursoDetalhe /></ErrorBoundary>} />
             <Route path="/admin" element={<AdminRoute><ErrorBoundary><AdminDashboard /></ErrorBoundary></AdminRoute>} />
             <Route path="/admin/concursos" element={<AdminRoute><ErrorBoundary><AdminConcursos /></ErrorBoundary></AdminRoute>} />
             <Route path="/admin/usuarios" element={<AdminRoute><ErrorBoundary><AdminUsuarios /></ErrorBoundary></AdminRoute>} />
@@ -106,6 +109,7 @@ function AppContent() {
             <Route path="/admin/pdfs" element={<AdminRoute><ErrorBoundary><AdminPDFs /></ErrorBoundary></AdminRoute>} />
             <Route path="/admin/forum" element={<AdminRoute><ErrorBoundary><AdminForum /></ErrorBoundary></AdminRoute>} />
             <Route path="/admin/tickets" element={<AdminRoute><ErrorBoundary><AdminTickets /></ErrorBoundary></AdminRoute>} />
+            <Route path="/admin/materias" element={<AdminRoute><ErrorBoundary><AdminMaterias /></ErrorBoundary></AdminRoute>} />
             <Route path="/admin/cursos" element={<AdminRoute><ErrorBoundary><AdminCursos /></ErrorBoundary></AdminRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

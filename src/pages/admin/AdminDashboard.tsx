@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { Shield, Users, BookOpen, HelpCircle, MessageSquare, Ticket, FileText, Film, LogOut, TrendingUp, Briefcase } from 'lucide-react';
+import { Shield, Users, BookOpen, HelpCircle, MessageSquare, Ticket, FileText, Film, LogOut, TrendingUp, Briefcase, Layers } from 'lucide-react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -39,6 +39,7 @@ export default function AdminDashboard() {
     { label: 'Questões', icon: HelpCircle, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', count: stats.questoes, path: '/admin/questoes' },
     { label: 'Aulas', icon: Film, color: 'text-purple-400 bg-purple-500/10 border-purple-500/20', count: stats.aulas, path: '/admin/aulas' },
     { label: 'PDFs', icon: FileText, color: 'text-rose-400 bg-rose-500/10 border-rose-500/20', count: stats.pdfs, path: '/admin/pdfs' },
+    { label: 'Matérias', icon: Layers, color: 'text-pink-400 bg-pink-500/10 border-pink-500/20', count: 0, path: '/admin/materias' },
     { label: 'Fórum', icon: MessageSquare, color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', count: 0, path: '/admin/forum' },
     { label: 'Tickets', icon: Ticket, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20', count: stats.tickets, path: '/admin/tickets' },
   ];

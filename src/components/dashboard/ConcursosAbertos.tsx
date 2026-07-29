@@ -1,9 +1,11 @@
+import { useNavigate } from 'react-router-dom'
 import { useConcursosAbertos } from '@/lib/queries/useConcursos'
 import { Briefcase, Users, Calendar, TrendingUp } from 'lucide-react'
 import type { Concurso } from '@/types'
 
 export default function ConcursosAbertos() {
   const { data: concursos = [] } = useConcursosAbertos()
+  const navigate = useNavigate()
 
   if (concursos.length === 0) return null
 
@@ -19,7 +21,7 @@ export default function ConcursosAbertos() {
             ? ((c.vagas / c.inscritos_estimados) * 100).toFixed(2)
             : null
           return (
-            <div key={c.id} className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-800/80">
+            <div key={c.id} onClick={() => navigate(`/concurso/${c.id}`)} className="bg-zinc-900/60 rounded-xl p-3.5 border border-zinc-800/80 cursor-pointer hover:border-zinc-700/80 transition-all">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-bold text-zinc-100 line-clamp-1">{c.titulo}</h3>
