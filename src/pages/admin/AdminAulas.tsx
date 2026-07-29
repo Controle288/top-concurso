@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Film, Search, Download, Youtube, CheckSquare, Square, Image } from 'lucide-react';
@@ -31,12 +32,9 @@ function parseDuration(duration: string): number {
 
 export default function AdminAulas() {
   const navigate = useNavigate();
-  const [aulas, setAulas] = useState<(Aula & { concursos?: { titulo: string } | null })[]>([]);
-  const [concursos, setConcursos] = useState<Concurso[]>([]);
-  const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ titulo: '', descricao: '', concurso_id: '', disciplina_id: '', youtube_url: '', duracao_minutos: 0, instrutor: '', thumbnail_url: '' });
 
   const [showImport, setShowImport] = useState(false);
@@ -48,24 +46,33 @@ export default function AdminAulas() {
   const [importLoading, setImportLoading] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  const load = () => {
-    supabase.from('aulas').select('*, concursos(titulo)').order('created_at', { ascending: false }).then(({ data }) => {
-      if (data) setAulas(data); setLoading(false);
-    });
-    supabase.from('concursos').select('*').order('titulo').then(({ data }) => { if (data) setConcursos(data); });
-  };
+  const { data: aulas = [], isLoading } = useQuery<(Aula & { concursos?: { titulo: string } | null })[]>({
+    queryKey: ['aulas'],
+    queryFn: async () => {
+      const { data } = await supabase.from('aulas').select('*, concursos(titulo)').order('created_at', { ascending: false });
+      return data ?? [];
+    },
+  });
 
-  useEffect(() => { load(); }, []);
+  const { data: concursos = [] } = useQuery<Concurso[]>({
+    queryKey: ['concursos'],
+    queryFn: async () => {
+      const { data } = await supabase.from('concursos').select('*').order('titulo');
+      return data ?? [];
+    },
+  });
 
-  useEffect(() => {
-    if (form.concurso_id) {
-      supabase.from('disciplinas').select('*').eq('concurso_id', form.concurso_id).then(({ data }) => {
-        if (data) setDisciplinas(data);
-      });
-    } else {
-      setDisciplinas([]);
-    }
-  }, [form.concurso_id]);
+  const { data: disciplinas = [] } = useQuery<Disciplina[]>({
+    queryKey: ['disciplinas_por_concurso', form.concurso_id],
+    queryFn: async () => {
+      if (!form.concurso_id) return [];
+      const { data } = await supabase.from('disciplinas').select('*').eq('concurso_id', form.concurso_id);
+      return data ?? [];
+    },
+    enabled: !!form.concurso_id,
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['aulas'] });
 
   const autoPreencherThumbnail = useCallback((url: string) => {
     const id = extractYoutubeId(url);
@@ -97,7 +104,7 @@ export default function AdminAulas() {
       if (error) return;
     }
     resetForm();
-    load();
+    invalidate();
   };
 
   const handleEdit = (a: Aula) => {
@@ -114,7 +121,7 @@ export default function AdminAulas() {
     if (!confirm('Excluir esta aula?')) return;
     const { error } = await supabase.from('aulas').delete().eq('id', id);
     if (error) return;
-    load();
+    invalidate();
   };
 
   const handleSearch = async () => {
@@ -174,7 +181,7 @@ export default function AdminAulas() {
       await importVideo(video)
     }
     setImporting(false)
-    load()
+    invalidate()
   }
 
   const handleImportAll = async () => {
@@ -186,7 +193,7 @@ export default function AdminAulas() {
       await importVideo(video)
     }
     setImporting(false)
-    load()
+    invalidate()
   }
 
   const handleImportSingle = async (video: ImportVideo) => {
@@ -194,7 +201,7 @@ export default function AdminAulas() {
     const ok = await importVideo(video)
     if (ok) {
       setImportResults(prev => prev.filter(r => r.id !== video.id))
-      load()
+      invalidate()
     }
   }
 
@@ -374,7 +381,7 @@ export default function AdminAulas() {
         </div>
       )}
 
-      {loading ? <p className="text-center text-zinc-500 py-8">Carregando...</p> : aulas.length === 0 ? (
+      {isLoading ? <p className="text-center text-zinc-500 py-8">Carregando...</p> : aulas.length === 0 ? (
         <p className="text-center text-zinc-500 py-8">Nenhuma aula cadastrada.</p>
       ) : (
         <div className="space-y-2">
