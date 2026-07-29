@@ -90,10 +90,10 @@ export function usePopularMaterias() {
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, concursoId) => {
       toast.success('Matérias importadas com sucesso!')
-      queryClient.invalidateQueries({ queryKey: ['materias'] })
-      queryClient.invalidateQueries({ queryKey: ['disciplinas'] })
+      queryClient.invalidateQueries({ queryKey: ['materias', concursoId] })
+      queryClient.invalidateQueries({ queryKey: ['disciplinas_por_concurso', concursoId] })
     },
     onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Erro ao popular matérias'),
   })

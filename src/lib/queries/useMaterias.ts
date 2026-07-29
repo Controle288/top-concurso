@@ -15,6 +15,8 @@ export function useMaterias(concursoId: string) {
       return data ?? []
     },
     enabled: !!concursoId,
+    staleTime: 0,
+    refetchOnMount: true,
   })
 }
 

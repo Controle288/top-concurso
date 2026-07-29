@@ -30,6 +30,8 @@ export default function AdminMaterias() {
       return data ?? [];
     },
     enabled: !!concursoId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: materias = [], isLoading } = useMaterias(concursoId);
