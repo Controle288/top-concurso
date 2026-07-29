@@ -70,3 +70,20 @@ export function useToggleTarefa() {
     },
   })
 }
+
+export function useCriarTarefasPadrao() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const hoje = new Date().toISOString().split('T')[0]
+      const { error } = await supabase
+        .from('tarefas_diarias')
+        .insert(defaultTasks.map(t => ({ ...t, user_id: userId, data: hoje })))
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tarefas_diarias'] })
+    },
+  })
+}

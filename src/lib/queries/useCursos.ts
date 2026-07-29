@@ -1,5 +1,6 @@
 import { useSupabaseQuery } from './index'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import type { Curso, CursoModulo, CursoMatricula, CursoAula } from '@/types'
 
@@ -100,9 +101,13 @@ export function useMatricularCurso() {
       const { error } = await supabase.from('curso_matriculas').insert({ curso_id: cursoId, user_id: userId })
       if (error) throw error
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['curso_matricula', variables.cursoId] })
+    onSuccess: () => {
+      toast.success('Matrícula realizada com sucesso!')
+      queryClient.invalidateQueries({ queryKey: ['curso_matricula'] })
       queryClient.invalidateQueries({ queryKey: ['minhas_matriculas'] })
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : 'Erro ao matricular')
     },
   })
 }
@@ -114,8 +119,12 @@ export function useMarcarProgresso() {
       const { error } = await supabase.from('curso_progresso').insert({ aula_id: aulaId, user_id: userId })
       if (error) throw error
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['curso_progresso', variables.aulaId] })
+    onSuccess: () => {
+      toast.success('Aula concluída!')
+      queryClient.invalidateQueries({ queryKey: ['curso_progresso'] })
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : 'Erro ao salvar progresso')
     },
   })
 }

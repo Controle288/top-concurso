@@ -1,5 +1,6 @@
 import { useState, lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { useAuth } from './lib/AuthContext'
 import LoginPage from './Login'
 import MobileFrame from './components/layout/MobileFrame'
@@ -72,6 +73,12 @@ function AppContent() {
 
   return (
     <>
+      <Toaster position="top-center" toastOptions={{
+        duration: 3000,
+        style: { background: '#18181b', color: '#f4f4f5', border: '1px solid rgba(63,63,70,0.5)', borderRadius: '12px', fontSize: '14px' },
+        success: { iconTheme: { primary: '#22c55e', secondary: '#18181b' } },
+        error: { iconTheme: { primary: '#ef4444', secondary: '#18181b' } },
+      }} />
       {showOnboarding && <Onboarding onComplete={completeOnboarding} />}
       <DesktopSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       <MobileFrame sidebarOpen={sidebarOpen}>
